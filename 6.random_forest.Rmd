@@ -33,8 +33,7 @@ psoil <- subset_samples(phyloseq_complete, Condition == "Psoil")
 
 ## set up metadata for analysis
 ```{r}
-CA_meta <- as.data.frame(phyloseq_complete@sam_data)
-CA_meta <- subset(CA_meta, Condition == "Qiagen")
+CA_meta <- as.data.frame(qiagen@sam_data)
 
 df_CA <- as.data.frame(as.matrix(CA_meta))
 df_CA_num <- dplyr::select(df_CA, "SEX2":"RHR")

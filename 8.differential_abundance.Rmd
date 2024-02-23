@@ -149,7 +149,7 @@ model_kw_gut_filt <- model_kw_gut[model_kw_gut$kw.eBH < 0.05,]
 
 ## save ALDEx2 results
 ```{r}
-# write.csv(model_kw, file = "/Users/ericaryu/Documents/school_stuff/grad_school/PSU/lab/Nepal/Himalayan_oral_microbiome/coding/model_kw.csv")
+# write.csv(model_kw, file = "output/model_kw.csv")
 
-# write.csv(model_kw_gut, file = "/Users/ericaryu/Documents/school_stuff/grad_school/PSU/lab/Nepal/Himalayan_oral_microbiome/coding/model_kw_gut.csv")
+# write.csv(model_kw_gut, file = "output/model_kw_gut.csv")
 ```

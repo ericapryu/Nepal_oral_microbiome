@@ -9,65 +9,54 @@ output:
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
-knitr::opts_knit$set(root.dir = "/Users/ericaryu/Documents/school_stuff/grad_school/PSU/lab/Nepal/Himalayan_oral_microbiome/coding")
 ```
 
-# The purpose of this script is to 
+# 10. CCA
+
+## The purpose of this script is to conduct canonical correspondence analysis (CCA) to identify which specific lifestyle factors are associated with the microbiome
 
 ## load packages
 ```{r}
 library(phyloseq)
 library(FactoMineR)
 library(factoextra)
-library(dplyr)
 library(vegan)
-library(caret)
-library(ggvegan)
+library(dplyr)
+
+# library(caret)
+# library(ggvegan)
 library(tidyr)
-library(ggplot2)
-library(gridExtra)
+# library(ggplot2)
+# library(gridExtra)
 ```
 
 ## load data
 ```{r}
-phyloseq_complete <- readRDS("ps_complete.rds")
+phyloseq_complete <- readRDS("output/ps_complete.rds")
 
 # subset based on extraction kit
 qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
 psoil <- subset_samples(phyloseq_complete, Condition == "Psoil")
 
-# phyloseq from cluster
-# phyloseq_cluster <- readRDS("/Users/ericaryu/Downloads/oralmicrobiome_ps.rds")
-# phyloseq_new <- readRDS("/Users/ericaryu/Downloads/oralmicrobiome_metadata_online_ps.rds")
-
-phyloseq.noncontam_all <- readRDS("ps_noncontam.rds")
-phyloseq <- readRDS("oralmicrobiome_metadata_online_ps.rds")
-
 # load alpha diversity 
-rfxn_micro <- read.csv("/Users/ericaryu/Documents/school_stuff/grad_school/PSU/lab/Nepal/Himalayan_oral_microbiome/coding/rarefaction_edit05152023.csv", header = TRUE)
+rfxn_micro <- read.csv("output/rarefaction_edit05152023.csv", header = TRUE)
 ```
 
 ## set colors
 ```{r}
 fourcolors <- c("darkslateblue", "deepskyblue", "lightblue3", "lightsalmon")
-fivecolors <- c("darkslateblue", "deepskyblue", "lightblue3", "lightsalmon" , "firebrick")
+fivecolors <- c("darkslateblue", "deepskyblue", "lightblue3", "lightsalmon", "firebrick")
 ```
 
 ## set up function
 ```{r}
 # calculate beta diversity
-beta_ordinate <- function(physeq, beta_dist){
+beta_ordinate <- function(physeq){
   # set up data
   ps.prop <- transform_sample_counts(physeq, function(otu) otu/sum(otu))
   ps.prop@otu_table <- na.omit(ps.prop@otu_table)
   ## calculate distance and ordinate
-  if (beta_dist == "weighted unifrac"){
-    ord.pcoa <- ordinate(ps.prop, method = "PCoA", distance = "unifrac", weighted = TRUE)
-  } else if (beta_dist == "unweighted unifrac") {
-    ord.pcoa <- ordinate(ps.prop, method = "PCoA", distance = "unifrac", weighted = FALSE)
-  } else {
-    ord.pcoa <- ordinate(ps.prop, method = "PCoA", distance = beta_dist)
-  }
+  ord.pcoa <- ordinate(ps.prop, method = "PCoA", distance = "bray")
 }
 
 # set up beta diversity data for plotting
@@ -89,17 +78,15 @@ plot_beta <- function(beta, physeq){
 
 ## set up metadata for analysis
 ```{r}
-CA_meta <- as.data.frame(phyloseq_complete@sam_data)
+CA_meta <- as.data.frame(qiagen@sam_data)
 CA_meta <- subset(CA_meta, Condition == "Qiagen")
 
 df_CA <- as.data.frame(as.matrix(CA_meta))
 df_CA_num <- dplyr::select(df_CA, "SEX2":"RHR")
-# df_CA_num$Hypertension2 <- df_CA$Hypertension2
 dim(df_CA_num)
-# 69 58
 
-### remove NAs
-# filter out Americans
+## remove factors with lots of NAs
+# filter out Americans due to no survey data
 df_CA_num$Lifestyle <- df_CA$Lifestyle
 wo_euro <- subset(df_CA_num, Lifestyle != "Industrial")
 
@@ -115,7 +102,7 @@ wo_vital <- dplyr::select(wo_bitter, -c("HGT2":"RHR"))
 # remove geographical info
 wo_geo <- dplyr::select(wo_vital, -c("LAT2":"ALT2"))
 
-### change NAs
+## change sporadic NAs
 # change NAs in EXER_FREQ2
 wo_geo$EXER_FREQ2[is.na(wo_geo$EXER_FREQ2)] <- 0
 
@@ -136,24 +123,15 @@ household$HS2[is.na(household$HS2)] <- 2
 # final df for CA
 df_CA_wo_lifestyle <- dplyr::select(household, -c("Lifestyle"))
 df_CA_final <- as.data.frame(sapply(df_CA_wo_lifestyle, as.numeric))
-# df_CA_final <- mutate_if(df_CA_numeric, is.numeric, as.factor) # not making into a factor
 dim(df_CA_final)
-# 63 37
 ```
 
-# make labels human readable
+## make labels human readable
 ```{r}
-colnames(df_CA_final) <- c("sex", "literacy", "location", "drinking_water", "fuel", 
-                          "kitchen_loc", "toilet", "grain", "Sisnu", "fish", 
-                          "meat", "black_tea", "milk_tea", "soda", "milk", 
-                          "yogurt", "yogurt_freq", "fermented", "ferm_freq", "food_source", 
-                          "scarcity", "smoking", "tobacco", "alcohol", "exercise", 
-                          "exercise_freq", "sick_checkup", "checkup_loc", "health_travel", "meds", 
-                          "ayurvedic", "brushing", "brushing_freq", "age", "education", 
-                          "household", "children")
+colnames(df_CA_final) <- c("sex", "literacy", "location", "drinking_water", "fuel", "kitchen_loc", "toilet", "grain", "Sisnu", "fish", "meat", "black_tea", "milk_tea", "soda", "milk", "yogurt", "yogurt_freq", "fermented", "ferm_freq", "food_source", "scarcity", "smoking", "tobacco", "alcohol", "exercise", "exercise_freq", "sick_checkup", "checkup_loc", "health_travel", "meds", "ayurvedic", "brushing", "brushing_freq", "age", "education", "household", "children")
 ```
 
-# CA
+## CA
 ```{r}
 rownames(df_CA_final) <- rownames(df_CA_wo_lifestyle)
 
@@ -161,33 +139,41 @@ set.seed(100)
 ca_res <- CA(df_CA_final, ncp = 37, graph = TRUE)
 print(ca_res)
 
-# The chi square of independence between the two variables is equal to 2414.648 (p-value =  0.003765287)
+# examine eigenvalues to see what percentage of variance they explain 
+eig.val <- get_eigenvalue(ca_res)
+fviz_screeplot(ca_res, addlabels = TRUE, ylim = c(0, 20))
 
-# plot CA
-## extract coordinates
+# what is the avg eigenvalue above which axis should be kept?
+col_max <- 1/(ncol(df_CA_final)-1)
+row_max <- 1/(nrow(df_CA_final)-1)
+```
+
+## plot CA
+```{r}
+# extract coordinates
 sample_CA <- as.data.frame(as.matrix(ca_res$row$coord))
 factor_CA <- as.data.frame(as.matrix(ca_res$col$coord))
 
-## simplify to just first two dimensions
+# simplify to just first two dimensions
 sample_CA <- sample_CA[, c("Dim 1", "Dim 2")]
 factor_CA <- factor_CA[, c("Dim 1", "Dim 2")]
 
-## rename columns for ease of use
+# rename columns for ease of use
 colnames(sample_CA) <- c("Dim1", "Dim2")
 colnames(factor_CA) <- c("Dim1", "Dim2")
 
-## add lifestyle info to samples
+# add lifestyle info to samples
 sample_CA$lifestyle  <- ifelse(grepl("CHE",row.names(sample_CA)), "Foragers",
                               ifelse(grepl("NEW00",row.names(sample_CA)) | grepl("NEW10",row.names(sample_CA)) | grepl("THA",row.names(sample_CA)), "Agriculturalists",
                               ifelse(grepl("NEW01",row.names(sample_CA)) | grepl("NEW11",row.names(sample_CA)), "Expats", "Recently Settled")))
 
-## for better visualization
+# for better visualization
 scaling_factor <- 1.07
 
-## only keep factors that are in the top 10 
+# only keep factors that are in the top 10 
 CA_labels <- factor_CA[c("Sisnu", "literacy", "fuel", "health_travel", "education", "smoking", "scarcity", "ayurvedic", "children", "grain", "alcohol", "tobacco", "sex", "location", "yogurt_freq"),]
 
-## plot
+# plot
 CA_plot <- ggplot(sample_CA, aes(x = Dim1, y = Dim2)) +
   geom_point(shape = 16, size = 2, aes(color = lifestyle)) +
   scale_color_manual(name=NULL,
@@ -205,62 +191,25 @@ CA_plot <- ggplot(sample_CA, aes(x = Dim1, y = Dim2)) +
        x = "CA1 (15.89%)",
        y = "CA2 (12.87%)")
 
-# ggsave(file="ca_plot.svg", plot=CA_plot, width=8, height=6)
-
-fviz_ca_biplot(ca_res)
-# double check association between rows and columns
-chi_square <- 2414.648
-# Degree of freedom
-df <- (nrow(df_CA_final) - 1) * (ncol(df_CA_final) - 1)
-pval <- pchisq(chi_square, df = df, lower.tail = FALSE)
-
-# examine eigenvalues to see what percentage of variance they explain 
-eig.val <- get_eigenvalue(ca_res)
-#          eigenvalue variance.percent cumulative.variance.percent
-# Dim.1  0.1067863586      15.88540562                    15.88541
-# Dim.2  0.0871682078      12.96703395                    28.85244
-# Dim.3  0.0556647538       8.28061939                    37.13306
-# Dim.4  0.0499561246       7.43141084                    44.56447
-# Dim.5  0.0485230095       7.21822242                    51.78269
-fviz_screeplot(ca_res, addlabels = TRUE, ylim = c(0, 20))
-
-# what is the avg eigenvalue above which axis should be kept?
-col_max <- 1/(ncol(df_CA_final)-1)
-# 0.02777778
-row_max <- 1/(nrow(df_CA_final)-1)
-# 0.01612903
-
-# asymmetric biplot
-fviz_ca_biplot(ca_res, 
-               map ="rowprincipal", arrow = c(FALSE, TRUE),
-               repel = TRUE)
+# ggsave(file="figures/ca_plot.svg", plot=CA_plot, width=8, height=6)
 ```
 
-# dig into the columns/factors
-```{r}
-# just plotting factors
-fviz_ca_col(ca_res)
 
-# specific contributions to each axis
+## determine specific contributions to each axis
+```{r}
 dim1_contrib <- fviz_contrib(ca_res, choice = "col", axes = 1, top = 10)
-# Sisnu, literacy, fuel, health travel, education, smoking, scarcity, ayurvedic, children, grain
 dim2_contrib <- fviz_contrib(ca_res, choice = "col", axes = 2, top = 10)
-# alcohol, tobacco, smoking, scarcity, sex, location, yogurt freq, literacy, Sisnu, grain
-fviz_contrib(ca_res, choice = "col", axes = 1:2, top = 10)
-# sisnu, literacy, fuel, alcohol, smoking, tobacco, scarcity, health travel, education, location
 
-# ggsave(file="dim1_contrib.svg", plot=dim1_contrib, width=8, height=5)
-# ggsave(file="dim2_contrib.svg", plot=dim2_contrib, width=8, height=5)
-
-# ggsave(file="dim1_contrib_small.svg", plot=dim1_contrib, width=4, height=2)
-# ggsave(file="dim2_contrib_small.svg", plot=dim2_contrib, width=4, height=2)
-
+# ggsave(file="figures/dim1_contrib_small.svg", plot=dim1_contrib, width=4, height=2)
+# ggsave(file="figures/dim2_contrib_small.svg", plot=dim2_contrib, width=4, height=2)
 ```
 
-# plot CA axes
+## plot CA axes
 ```{r}
+# prep
 row_axes <- get_ca_row(ca_res)$coord
 row_axes <- as.data.frame(row_axes[,c(1,2,3,4)])
+
 # add lifestyle info
 row_axes$lifestyle  <- ifelse(grepl("CHE",row.names(row_axes)), "Foragers",
                               ifelse(grepl("NEW00",row.names(row_axes)) | grepl("NEW10",row.names(row_axes)) | grepl("THA",row.names(row_axes)), "Agriculturalists",
@@ -283,7 +232,7 @@ ca1_axes <- ggplot(row_axes, aes(x = lifestyle, y = as.numeric(Dim1), group = li
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-# ggsave(file="ca1_axes.svg", plot=ca1_axes, width=4, height=3)
+# ggsave(file="figures/ca1_axes.svg", plot=ca1_axes, width=4, height=3)
 
 ca2_axes <- ggplot(row_axes, aes(x = lifestyle, y = as.numeric(Dim2), group = lifestyle), color = black) +
   geom_violin(alpha = 0.8, aes(fill=lifestyle)) +
@@ -298,10 +247,10 @@ ca2_axes <- ggplot(row_axes, aes(x = lifestyle, y = as.numeric(Dim2), group = li
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-# ggsave(file="ca2_axes.svg", plot=ca2_axes, width=4, height=3)
+# ggsave(file="figures/ca2_axes.svg", plot=ca2_axes, width=4, height=3)
 ```
 
-# are CA axes correlated with PCoA axes? are differences in lifestyle associated with differences in the microbiome?
+## assess if CA axes are correlated with PCoA axes
 ```{r}
 # prep CA data
 ca.data <- as.data.frame(ca_res$row$coord)
@@ -312,21 +261,22 @@ colnames(ca.data) <- c("CA1", "CA2", "CA3", "CA4")
 dim(ca.data)
   
 # prep PCoA data
-pcoa_corr <- subset_samples(qiagen, Lifestyle != "Industrial")
-bray_ordinate_corr <- beta_ordinate(pcoa_corr, beta_dist = "bray")
+pcoa_corr <- subset_samples(qiagen, Lifestyle != "Industrial") # remove Europeans due to no survey data
+bray_ordinate_corr <- beta_ordinate(pcoa_corr)
 bray_plot_corr <- plot_beta(bray_ordinate_corr, pcoa_corr)
 bray_plot_corr_num <-  as.data.frame(sapply(bray_plot_corr, as.numeric))
 rownames(bray_plot_corr_num) <- rownames(bray_plot_corr)
 colnames(bray_plot_corr_num) <- c("PCoA1", "PCoA2", "PCoA3", "PCoA4", "lifestyle")
 dim(bray_plot_corr_num)
 
-# combine
+# combine PCoA and CA data
 pcoa_ca <- merge(ca.data, bray_plot_corr_num, by = "row.names")
 pcoa_ca$lifestyle  <- ifelse(grepl("CHE",pcoa_ca$Row.names), "Foragers",
                               ifelse(grepl("NEW00",pcoa_ca$Row.names) | grepl("NEW10",pcoa_ca$Row.names) | grepl("THA",pcoa_ca$Row.names), "Agriculturalists",
                               ifelse(grepl("NEW01",pcoa_ca$Row.names) | grepl("NEW11",pcoa_ca$Row.names), "Expats", "Recently Settled")))
 
-### axes 1
+### plot and calculate correlations between axes
+## axes 1
 # plot 
 pcoa1_ca1 <- ggplot(pcoa_ca , aes(x = PCoA1, y = CA1)) +
   geom_point(shape = 21, color = "black", size = 3, aes(fill = lifestyle)) +
@@ -339,14 +289,12 @@ pcoa1_ca1 <- ggplot(pcoa_ca , aes(x = PCoA1, y = CA1)) +
        x = "PCoA1",
        y = "CA1")
 
-# ggsave(file="pcoa1_ca1_small.svg", plot=pcoa1_ca1, width=4, height=2)
+# ggsave(file="figures/pcoa1_ca1_small.svg", plot=pcoa1_ca1, width=4, height=2)
 
 # correlation
 cor.test(pcoa_ca$PCoA1, pcoa_ca$CA1, alternative = "two.sided", method=c("spearman"))
-#  rho = 0.05347542, p value = 0.6765
 
-
-### axes 2
+## axes 2
 # plot
 pcoa2_ca2 <- ggplot(pcoa_ca , aes(x = PCoA2, y = CA2*-1)) +
   geom_point(shape = 21, color = "black", size = 3, aes(fill = lifestyle)) +
@@ -359,15 +307,13 @@ pcoa2_ca2 <- ggplot(pcoa_ca , aes(x = PCoA2, y = CA2*-1)) +
        x = "PCoA2",
        y = "CA2")
 
-# ggsave(file="pcoa2_ca2_small.svg", plot=pcoa2_ca2, width=4, height=2)
+# ggsave(file="figures/pcoa2_ca2_small.svg", plot=pcoa2_ca2, width=4, height=2)
 
 # correlation
 cor.test(pcoa_ca$PCoA2, pcoa_ca$CA2, alternative = "two.sided", method=c("spearman"))
-#  rho = 0.2748656, p-value = 0.02956
 
-
-### axes 3
-# plot (use rev version because otherwise neg corr)
+## axes 3
+# plot
 pcoa3_ca3 <- ggplot(pcoa_ca , aes(x = PCoA3, y = CA3*-1)) +
   geom_point(shape = 21, color = "black", size = 3, aes(fill = lifestyle)) +
   scale_fill_manual(name=NULL,
@@ -381,11 +327,10 @@ pcoa3_ca3 <- ggplot(pcoa_ca , aes(x = PCoA3, y = CA3*-1)) +
 
 # correlation
 cor.test(pcoa_ca$PCoA3, pcoa_ca$CA3, alternative = "two.sided", method=c("spearman"))
-#  rho = 0.01104071, p-value = 0.9315
 
-# ggsave(file="pcoa3_ca3_small.svg", plot=pcoa3_ca3, width=4, height=2)
+# ggsave(file="figures/pcoa3_ca3_small.svg", plot=pcoa3_ca3, width=4, height=2)
 
-### CA1 vs PCoA2]
+## CA1 vs PCoA2
 pcoa2_ca1 <- ggplot(pcoa_ca , aes(x = PCoA2, y = CA1)) +
   geom_point(shape = 21, color = "black", size = 3, aes(fill = lifestyle)) +
   scale_fill_manual(name=NULL,
@@ -399,11 +344,10 @@ pcoa2_ca1 <- ggplot(pcoa_ca , aes(x = PCoA2, y = CA1)) +
 
 # correlation
 cor.test(pcoa_ca$PCoA2, pcoa_ca$CA1, alternative = "two.sided", method=c("spearman"))
-#  rho = -0.005088326, p-value = 0.9685
 
-# ggsave(file="pcoa2_ca1_small.svg", plot=pcoa2_ca1, width=4, height=2)
+# ggsave(file="figures/pcoa2_ca1_small.svg", plot=pcoa2_ca1, width=4, height=2)
 
-### CA2 vs PCoA1
+## CA2 vs PCoA1
 pcoa1_ca2 <- ggplot(pcoa_ca , aes(x = PCoA1, y = CA2)) +
   geom_point(shape = 21, color = "black", size = 3, aes(fill = lifestyle)) +
   scale_fill_manual(name=NULL,
@@ -417,14 +361,13 @@ pcoa1_ca2 <- ggplot(pcoa_ca , aes(x = PCoA1, y = CA2)) +
 
 # correlation
 cor.test(pcoa_ca$PCoA1, pcoa_ca$CA2, alternative = "two.sided", method=c("spearman"))
-#  rho = -0.004416283, p-value = 0.9727
 
-# ggsave(file="pcoa1_ca2_small.svg", plot=pcoa1_ca2, width=4, height=2)
+# ggsave(file="figures/pcoa1_ca2_small.svg", plot=pcoa1_ca2, width=4, height=2)
 ```
 
-# CA axes vs alpha diversity
+## CA axes vs alpha diversity
 ```{r}
-# subset to qiagen
+# subset alpha diversity to qiagen samples
 qiagen_rfxn <- subset(rfxn_micro, Condition == "Qiagen")
 
 # subset to shannon and faiths
@@ -444,7 +387,8 @@ rownames(faiths_CA) <- rownames(ca.data)
 shannon_CA_comb <- merge(shannon_CA, ca.data, by = "row.names")
 faiths_CA_comb <- merge(faiths_CA, ca.data, by = "row.names")
 
-### shannon axes
+### correlations between Shannon and CA
+## shannon and CA1
 # plot 
 shannon_ca1 <- ggplot(shannon_CA_comb, aes(x = mean, y = CA1)) +
   geom_point(shape = 21, color = "black", size = 3, aes(fill = Lifestyle)) +
@@ -457,8 +401,13 @@ shannon_ca1 <- ggplot(shannon_CA_comb, aes(x = mean, y = CA1)) +
        x = "Shannon Alpha",
        y = "CA1")
 
-# ggsave(file="shannon_ca1_small.svg", plot=shannon_ca1, width=4, height=2)
+# ggsave(file="figures/shannon_ca1_small.svg", plot=shannon_ca1, width=4, height=2)
 
+# correlation
+cor.test(shannon_CA_comb$mean, shannon_CA_comb$CA1, alternative = "two.sided", method=c("spearman"))
+
+## shannon and CA2
+# plot
 shannon_ca2 <- ggplot(shannon_CA_comb, aes(x = mean, y = CA2)) +
   geom_point(shape = 21, color = "black", size = 3, aes(fill = Lifestyle)) +
   scale_fill_manual(name=NULL,
@@ -470,10 +419,13 @@ shannon_ca2 <- ggplot(shannon_CA_comb, aes(x = mean, y = CA2)) +
        x = "Shannon Alpha",
        y = "CA2")
 
-# ggsave(file="shannon_ca2_small.svg", plot=shannon_ca2, width=4, height=2)
+# ggsave(file="figures/shannon_ca2_small.svg", plot=shannon_ca2, width=4, height=2)
 
-### faiths axes
-## plot
+# correlation
+cor.test(shannon_CA_comb$mean, shannon_CA_comb$CA2, alternative = "two.sided", method=c("spearman"))
+
+## faiths and CA1
+# plot
 faiths_ca1 <- ggplot(faiths_CA_comb, aes(x = mean, y = CA1)) +
   geom_point(shape = 21, color = "black", size = 3, aes(fill = Lifestyle)) +
   scale_fill_manual(name=NULL,
@@ -485,8 +437,13 @@ faiths_ca1 <- ggplot(faiths_CA_comb, aes(x = mean, y = CA1)) +
        x = "Faiths Alpha",
        y = "CA1")
 
-# ggsave(file="faiths_ca1_small.svg", plot=faiths_ca1, width=4, height=2)
+# ggsave(file="figures/faiths_ca1_small.svg", plot=faiths_ca1, width=4, height=2)
 
+# correlation
+cor.test(faiths_CA_comb$mean, faiths_CA_comb$CA1, alternative = "two.sided", method=c("spearman"))
+
+## faiths and CA2
+# plot
 faiths_ca2 <- ggplot(faiths_CA_comb, aes(x = mean, y = CA2)) +
   geom_point(shape = 21, color = "black", size = 3, aes(fill = Lifestyle)) +
   scale_fill_manual(name=NULL,
@@ -498,31 +455,31 @@ faiths_ca2 <- ggplot(faiths_CA_comb, aes(x = mean, y = CA2)) +
        x = "Faiths Alpha",
        y = "CA2")
 
-# ggsave(file="faiths_ca2_small.svg", plot=faiths_ca2, width=4, height=2)
+# ggsave(file="figures/faiths_ca2_small.svg", plot=faiths_ca2, width=4, height=2)
 
 # correlation
 cor.test(faiths_CA_comb$mean, faiths_CA_comb$CA2, alternative = "two.sided", method=c("spearman"))
-
-
 ```
 
-
-# prep OTU table for CCA
+## prep OTU table and survey data for CCA
 ```{r}
-# collapse to genus level
-phy_genus <-  tax_glom(pcoa_corr, "Genus", NArm = FALSE);phy_genus
+### prep OTU table
+# remove Americans from original phyloseq object
+phyloseq_wo_euro <- subset_samples(qiagen, Lifestyle != "Industrial")
 
-# relative abundance
+# collapse to genus level
+phy_genus <-  tax_glom(phyloseq_wo_euro, "Genus", NArm = FALSE);phy_genus
+
+# convert to relative abundance
 phy_genus_RA <- transform_sample_counts(phy_genus, function(otu) otu/sum(otu))
 
+# extract OTU table
 df_OTU_CCA <- as.data.frame(as.matrix(phy_genus_RA@otu_table))
 
-# log transform 
-# mk_logit <- function(df_OTU_CCA) {
-#   return(log10(df_OTU_CCA+0.0001))}
-# log_CCA <- map_df(df_OTU_CCA, .f = mk_logit)
+# log transform
+log_df_OTU_CCA <- decostand(df_OTU_CCA, "log")
 
-### add taxa names
+## add taxa names
 # get taxa table
 CCA_tax_table <- as.data.frame(as.matrix(phy_genus_RA@tax_table))
 
@@ -540,7 +497,7 @@ CCA_tax_table$Genus <- ifelse(CCA_tax_table$Genus == "_unclassified", paste(CCA_
 CCA_genera_table <- subset(CCA_tax_table, select = c(Genus))
 
 # add taxonomic info to OTU table
-CCA_OTU_log_t <- t(df_OTU_CCA)
+CCA_OTU_log_t <- t(log_df_OTU_CCA)
 CCA_otu_tax <- merge(CCA_OTU_log_t, CCA_genera_table, by = 0, all = TRUE)
 
 # remove NA_classified
@@ -553,226 +510,8 @@ CCA_otu_tax <- subset(CCA_otu_tax, select = -c(Genus, Row.names))
 # transpose back
 CCA_otu_tax_t <- t(CCA_otu_tax)
 
-df_CA_factor <- mutate_if(df_CA_final, is.numeric, as.factor)
-```
-
-# CCA
-```{r}
-# cca_model_all <- cca(CCA_log~., df_CA_final)
-# # select variables
-# final_cca_model_all <- ordistep(cca_model_all, scope = formula(cca_model_all))
-# 
-# # calculate VIF
-# vif.cca(final_cca_model_all)
-
-cca_model_CA2 <- cca(CCA_otu_tax_t ~ alcohol + tobacco + smoking + scarcity + sex + location + yogurt_freq + literacy + Sisnu + grain, data = df_CA_factor)
-
-vif.cca(cca_model_CA2)
-
-cca_model_CA2
-# 23.51% of species variance explained by the lifestyle factors in the model
-# CCA1    CCA2    CCA3    CCA4    CCA5    CCA6    CCA7    CCA8    CCA9   CCA10   CCA11   CCA12 
-# 0.07409 0.05030 0.03879 0.03302 0.03038 0.02885 0.02573 0.02464 0.02332 0.02157 0.01828 0.01707 
-
-# test significance of the model
-anova.cca(cca_model_CA2)
-#          Df ChiSquare      F Pr(>F)    
-# Model    12   0.38604 1.2807  0.001 ***
-# Residual 50   1.25593       
-anova.cca(cca_model_CA2, by = "terms")
-#             Df ChiSquare      F Pr(>F)    
-# alcohol      1   0.03796 1.5113  0.004 ** 
-# tobacco      1   0.02806 1.1173  0.170    
-# smoking      1   0.04122 1.6409  0.001 ***
-# scarcity     1   0.02916 1.1609  0.082 .  
-# sex          1   0.02336 0.9301  0.676    
-# location     1   0.04782 1.9039  0.001 ***
-# yogurt_freq  3   0.08225 1.0915  0.114    
-# literacy     1   0.02276 0.9060  0.783    
-# Sisnu        1   0.03959 1.5759  0.002 ** 
-# grain        1   0.03385 1.3477  0.009 ** 
-anova.cca(cca_model_CA2, by = "axis")
-#          Df ChiSquare      F Pr(>F)    
-# CCA1      1   0.07409 2.9494  0.001 ***
-# CCA2      1   0.05030 2.0025  0.019 *  
-# CCA3      1   0.03879 1.5441  0.415 
-
-### plot
-plot <- autoplot(cca_model_CA2)
-plot
-
-```
-
-# CCA final plot
-```{r}
-df_species  <- as.data.frame(summary(cca_model_CA2)$species[,1:2])# get the species CC1 and CC2 scores
-df_sites  <- as.data.frame(summary(cca_model_CA2)$sites[,1:2])# get the sites CC1 and CC2 scores
-df_environ  <- as.data.frame(scores(cca_model_CA2, display = 'bp')) #get the environment vars CC1 and CC2 scores for arrows
-
-cca1_varex<-round(summary(cca_model_CA2)$cont$importance[2,1]*100,2) #Get percentage of variance explained by first axis
-cca2_varex<-round(summary(cca_model_CA2)$cont$importance[2,2]*100,2) #Get percentage of variance explained by second axis
-
-# add lifestyle info to sites
-df_sites$lifestyle  <- ifelse(grepl("CHE",row.names(df_sites)), "Foragers",
-                              ifelse(grepl("NEW00",row.names(df_sites)) | grepl("NEW10",row.names(df_sites)) | grepl("THA",row.names(df_sites)), "Agriculturalists",
-                              ifelse(grepl("NEW01",row.names(df_sites)) | grepl("NEW11",row.names(df_sites)), "Expats", "Recently Settled")))
-
-# fix environmental labels
-rownames(df_environ) <- c("alcohol", "tobacco", "smoking", "scarcity", "sex", "location", "yogurt once month", "yogurt twice month", "yogurt twice week", "literacy", "Sisnu", "grain")
-
-scaling_factor_CCA <- 2.5 # for better visualization
-
-final_plot <- ggplot()+
-  geom_hline(yintercept=0, 
-             linetype="dashed") +
-  geom_vline(xintercept=0, 
-             linetype="dashed") +
-  coord_fixed()+
-  # Add species points
-  geom_point(data=df_species, color = c("black"), shape = 8, alpha = 0.6, size = 3,
-            aes(x=CCA1,#Score in CCA1 to add species text
-                y=CCA2,#Score in CCA2 to add species text
-                # label=rownames(df_species),
-                # hjust=0.5*(1-sign(CCA1)),#Set the text horizontal alignment according to its position in the CCA plot
-                # vjust=0.5*(1-sign(CCA2))),#Set the text vertical alignment according to its position in the CCA plot
-            ))+
-  # Add species points
-  geom_point(data=df_sites, shape = 21, color = c("black"), size = 3, 
-            aes(x=CCA1,
-                y=CCA2, fill = lifestyle))+
-  scale_fill_manual(name=NULL,
-                    values=fourcolors,
-                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats"),
-                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats")) +
-  #Add environmental vars arrows
-  geom_segment(data=df_environ, 
-               aes(x=0, #Starting coordinate in CCA1 = 0 
-                   xend=CCA1*scaling_factor_CCA,#Ending coordinate in CCA1  
-                   y=0, #Start in CCA2 = 0
-                   yend=CCA2*scaling_factor_CCA), #Ending coordinate in CCA2 
-               color="firebrick", #set color
-               arrow=arrow(length=unit(0.01,"npc"))#Set the size of the lines that form the tip of the arrow
-               )+
-  #Add environmental vars text
-  geom_text(data=df_environ, size = 3, 
-            aes(x=CCA1*scaling_factor_CCA, 
-                y=CCA2*scaling_factor_CCA,
-                label=rownames(df_environ),
-                hjust=0.5*(1-sign(CCA1)),#Add the text of each environmental var at the end of the arrow
-                vjust=0.5*(1-sign(CCA2))),#Add the text of each environmental var at the end of the arrow 
-            color="firebrick")+
-  #Set bw theme
-  theme_bw()+
-  #Set x and y axis titles
-  labs(x=paste0("CCA1 (",cca1_varex," %)"),
-       y=paste0("CCA2 (",cca2_varex," %)"),
-       title = "CCA")
-
-# ggsave(file="CCA.svg", plot=final_plot, width=8, height=7)
-
-# main body CCA plot
-df_environ_fig <- df_environ[c("alcohol", "smoking", "location", "Sisnu", "grain"),]
-
-mainbody_plot <- ggplot(data=df_sites)+
-  geom_hline(yintercept=0, 
-             linetype="dashed") +
-  geom_vline(xintercept=0, 
-             linetype="dashed") +
-  coord_fixed()+
-  # Add site points
-  geom_point(shape = 21, color = c("black"), size = 3, 
-            aes(x=CCA1,
-                y=CCA2, fill = lifestyle))+
-  scale_fill_manual(name=NULL,
-                    values=fourcolors,
-                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats"),
-                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats")) +
-  stat_ellipse(aes(x=CCA1, y=CCA2, color = lifestyle),type = "norm") +
-  #Add environmental vars arrows
-  geom_segment(data=df_environ_fig, 
-               aes(x=0, #Starting coordinate in CCA1 = 0 
-                   xend=CCA1*scaling_factor_CCA,#Ending coordinate in CCA1  
-                   y=0, #Start in CCA2 = 0
-                   yend=CCA2*scaling_factor_CCA), #Ending coordinate in CCA2 
-               color="firebrick", #set color
-               arrow=arrow(length=unit(0.01,"npc"))#Set the size of the lines that form the tip of the arrow
-               )+
-  #Add environmental vars text
-  geom_text(data=df_environ_fig, size = 3, 
-            aes(x=CCA1*scaling_factor_CCA, 
-                y=CCA2*scaling_factor_CCA,
-                label=rownames(df_environ_fig),
-                hjust=0.5*(1-sign(CCA1)),#Add the text of each environmental var at the end of the arrow
-                vjust=0.5*(1-sign(CCA2))),#Add the text of each environmental var at the end of the arrow 
-            color="firebrick")+
-  #Set bw theme
-  theme_bw()+
-  #Set x and y axis titles
-  labs(x=paste0("CCA1 (",cca1_varex," %)"),
-       y=paste0("CCA2 (",cca2_varex," %)"),
-       title = "CCA")
-```
-
-# add species info to find taxa that pop out
-```{r}
-taxa_cutoff <- df_species
-taxa_cutoff <- filter(taxa_cutoff, abs(CCA1)>0.5 | abs(CCA2)>0.5)
-
-scaling_factor_CCA <- 2.5
-
-ggplot()+
-  geom_hline(yintercept=0, 
-             linetype="dashed") +
-  geom_vline(xintercept=0, 
-             linetype="dashed") +
-  coord_fixed()+
-  # Add species points
-  geom_point(data=df_species, color = c("black"), shape = 8, alpha = 0.6, size = 3,
-            aes(x=CCA1,#Score in CCA1 to add species text
-                y=CCA2,#Score in CCA2 to add species text
-                # label=rownames(df_species),
-                # hjust=0.5*(1-sign(CCA1)),#Set the text horizontal alignment according to its position in the CCA plot
-                # vjust=0.5*(1-sign(CCA2))),#Set the text vertical alignment according to its position in the CCA plot
-            ))+
-  # Add species points
-  geom_point(data=df_sites, shape = 21, color = c("black"), size = 3, 
-            aes(x=CCA1,
-                y=CCA2, fill = lifestyle))+
-  scale_fill_manual(name=NULL,
-                    values=fourcolors,
-                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats"),
-                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats")) +
-  #Add environmental vars arrows
-  geom_segment(data=df_environ, 
-               aes(x=0, #Starting coordinate in CCA1 = 0 
-                   xend=CCA1*scaling_factor_CCA,#Ending coordinate in CCA1  
-                   y=0, #Start in CCA2 = 0
-                   yend=CCA2*scaling_factor_CCA), #Ending coordinate in CCA2 
-               color="firebrick", #set color
-               arrow=arrow(length=unit(0.01,"npc"))#Set the size of the lines that form the tip of the arrow
-               )+
-  #Add environmental vars text
-  # geom_text(data=df_environ, size = 3, 
-  #           aes(x=CCA1*scaling_factor_CCA, 
-  #               y=CCA2*scaling_factor_CCA,
-  #               label=rownames(df_environ),
-  #               hjust=0.5*(1-sign(CCA1)),#Add the text of each environmental var at the end of the arrow
-  #               vjust=0.5*(1-sign(CCA2))),#Add the text of each environmental var at the end of the arrow 
-  #           color="firebrick")+
-    geom_text(data=taxa_cutoff, size = 3, 
-            aes(x=CCA1, 
-                y=CCA2,
-                label=rownames(taxa_cutoff),
-                hjust=0.5*(1-sign(CCA1)),#Add the text of each environmental var at the end of the arrow
-                vjust=0.5*(1-sign(CCA2))),#Add the text of each environmental var at the end of the arrow 
-            color="firebrick")+
-  #Set bw theme
-  theme_bw()+
-  #Set x and y axis titles
-  labs(x=paste0("CCA1 (",cca1_varex," %)"),
-       y=paste0("CCA2 (",cca2_varex," %)"),
-       title = "CCA")
-
+### prep survey data
+df_CA_factor <- mutate_if(df_CA_final, is.numeric, as.factor) # convert to factor
 ```
 
 # CCA with CA1
@@ -783,46 +522,17 @@ cca_model_CA1_CA2 <- cca(CCA_otu_tax_t ~ alcohol + tobacco + smoking + scarcity 
 vif.cca(cca_model_CA1_CA2)
 
 cca_model_CA1_CA2
-# 16.04% of species variance explained by the lifestyle factors in the model
-# CCA1     CCA2     CCA3     CCA4     CCA5     CCA6     CCA7     CCA8     CCA9    CCA10    CCA11    CCA12 
-# 0.029516 0.020865 0.014466 0.010446 0.009610 0.008989 0.008354 0.006594 0.005877 0.005662 0.005158 0.005022 
 
 # test significance of the model
 anova.cca(cca_model_CA1_CA2)
-#          Df ChiSquare      F Pr(>F)    
-# Model    24   0.16038 1.1783  0.013 *
-# Residual 38   0.21552   
 anova.cca(cca_model_CA1_CA2, by = "terms")
-#               Df ChiSquare      F Pr(>F)    
-# alcohol        1  0.008906 1.5703  0.035 *  
-# tobacco        1  0.006803 1.1996  0.206    
-# smoking        1  0.014040 2.4755  0.001 ***
-# scarcity       1  0.007700 1.3576  0.070 .  
-# sex            1  0.005708 1.0064  0.421    
-# location       1  0.012723 2.2434  0.002 ** 
-# yogurt_freq    3  0.017730 1.0421  0.378    
-# literacy       1  0.004678 0.8249  0.729    
-# Sisnu          1  0.011441 2.0173  0.006 ** 
-# grain          1  0.008582 1.5133  0.047 *  
-# fuel           2  0.011475 1.0116  0.462    
-# health_travel  1  0.006568 1.1580  0.211    
-# education      3  0.015799 0.9286  0.676    
-# ayurvedic      3  0.014646 0.8608  0.808    
-# children       3  0.013584 0.7984  0.926   
-# Residual      38  0.215515       
 anova.cca(cca_model_CA1_CA2, by = "axis")
-#          Df ChiSquare      F Pr(>F)   
-# CCA1      1  0.029516 5.2042  0.008 **
-# CCA2      1  0.020865 3.6790  0.330    
-
-### plot
 ```
 
-# prep for CCA with CA1 final plot 
+## prep for CCA with CA1 final plot 
 ```{r}
-df_species  <- as.data.frame(summary(cca_model_CA1_CA2)$species[,1:2])# get the species CC1 and CC2 scores
 df_sites  <- as.data.frame(summary(cca_model_CA1_CA2)$sites[,1:2])# get the sites CC1 and CC2 scores
-df_environ  <- as.data.frame(scores(cca_model_CA1_CA2, display = 'bp')) #get the environment vars CC1 and CC2 scores for arrows
+df_environ  <- as.data.frame(scores(cca_model_CA1_CA2, display = 'bp')) # get the environment vars CC1 and CC2 scores for arrows
 
 cca1_varex<-round(summary(cca_model_CA1_CA2)$cont$importance[2,1]*100,2) #Get percentage of variance explained by first axis
 cca2_varex<-round(summary(cca_model_CA1_CA2)$cont$importance[2,2]*100,2) #Get percentage of variance explained by second axis
@@ -835,59 +545,12 @@ df_sites$lifestyle  <- ifelse(grepl("CHE",row.names(df_sites)), "Foragers",
 # fix environmental labels
 rownames(df_environ) <- c("alcohol", "tobacco", "smoking", "scarcity", "sex", "location", "yogurt once month", "yogurt twice month", "yogurt twice week", "literacy", "Sisnu", "grain", "fuel elec/gas", "fuel biogas", "health_travel", "education 2-6", "education 7-11", "education 12+", "unknown ayurvedic", "ayurvedic 0-6mo", "ayurvedic 6-12 mo", "1-2 children", "3-5 children", "6+ children")
 
-scaling_factor_CCA <- 2.5 # for better visualization
-
-final_plot <- ggplot()+
-  geom_hline(yintercept=0, 
-             linetype="dashed") +
-  geom_vline(xintercept=0, 
-             linetype="dashed") +
-  coord_fixed()+
-  # Add species points
-  geom_point(data=df_species, color = c("black"), shape = 8, alpha = 0.6, size = 3,
-            aes(x=CCA1,#Score in CCA1 to add species text
-                y=CCA2,#Score in CCA2 to add species text
-                # label=rownames(df_species),
-                # hjust=0.5*(1-sign(CCA1)),#Set the text horizontal alignment according to its position in the CCA plot
-                # vjust=0.5*(1-sign(CCA2))),#Set the text vertical alignment according to its position in the CCA plot
-            ))+
-  # Add species points
-  geom_point(data=df_sites, shape = 21, color = c("black"), size = 3, 
-            aes(x=CCA1,
-                y=CCA2, fill = lifestyle))+
-  scale_fill_manual(name=NULL,
-                    values=fourcolors,
-                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats"),
-                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats")) +
-  #Add environmental vars arrows
-  geom_segment(data=df_environ, 
-               aes(x=0, #Starting coordinate in CCA1 = 0 
-                   xend=CCA1*scaling_factor_CCA,#Ending coordinate in CCA1  
-                   y=0, #Start in CCA2 = 0
-                   yend=CCA2*scaling_factor_CCA), #Ending coordinate in CCA2 
-               color="firebrick", #set color
-               arrow=arrow(length=unit(0.01,"npc"))#Set the size of the lines that form the tip of the arrow
-               )+
-  #Add environmental vars text
-  geom_text(data=df_environ, size = 3, 
-            aes(x=CCA1*scaling_factor_CCA, 
-                y=CCA2*scaling_factor_CCA,
-                label=rownames(df_environ),
-                hjust=0.5*(1-sign(CCA1)),#Add the text of each environmental var at the end of the arrow
-                vjust=0.5*(1-sign(CCA2))),#Add the text of each environmental var at the end of the arrow 
-            color="firebrick")+
-  #Set bw theme
-  theme_bw()+
-  #Set x and y axis titles
-  labs(x=paste0("CCA1 (",cca1_varex," %)"),
-       y=paste0("CCA2 (",cca2_varex," %)"),
-       title = "CCA")
-
-# ggsave(file="CCA.svg", plot=final_plot, width=8, height=7)
-
+# filter to only significant factors for visualization
 df_environ_fig <- df_environ[c("alcohol", "smoking", "location", "Sisnu", "grain"),]
 
-mainbody_plot <- ggplot(data=df_sites)+
+scaling_factor_CCA <- 2.5 # for better visualization
+
+CCA_sig_plot <- ggplot(data=df_sites)+
   geom_hline(yintercept=0, 
              linetype="dashed") +
   geom_vline(xintercept=0, 
@@ -929,251 +592,5 @@ mainbody_plot <- ggplot(data=df_sites)+
   labs(x=paste0("CCA1 (",cca1_varex," %)"),
        y=paste0("CCA2 (",cca2_varex," %)"))
 
-# ggsave(file="CCA.svg", plot=mainbody_plot, width=5, height=4)
+# ggsave(file="figures/CCA.svg", plot=CCA_sig_plot, width=5, height=4)
 ```
-
-# add species info to find taxa that pop out
-```{r}
-taxa_cutoff <- df_species
-taxa_cutoff <- filter(taxa_cutoff, abs(CCA1)>0.5 | abs(CCA2)>0.5)
-
-scaling_factor_CCA <- 3
-
-CCA_taxa <- ggplot()+
-  geom_hline(yintercept=0, 
-             linetype="dashed") +
-  geom_vline(xintercept=0, 
-             linetype="dashed") +
-  coord_fixed()+
-  # Add species points
-  geom_point(data=df_species, color = c("black"), shape = 8, alpha = 0.6, size = 3,
-            aes(x=CCA1,#Score in CCA1 to add species text
-                y=CCA2,#Score in CCA2 to add species text
-                # label=rownames(df_species),
-                # hjust=0.5*(1-sign(CCA1)),#Set the text horizontal alignment according to its position in the CCA plot
-                # vjust=0.5*(1-sign(CCA2))),#Set the text vertical alignment according to its position in the CCA plot
-            ))+
-  # Add species points
-  geom_point(data=df_sites, shape = 21, color = c("black"), size = 3, 
-            aes(x=CCA1,
-                y=CCA2, fill = lifestyle))+
-  scale_fill_manual(name=NULL,
-                    values=fourcolors,
-                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats"),
-                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats")) +
-  #Add environmental vars arrows
-  geom_segment(data=df_environ, 
-               aes(x=0, #Starting coordinate in CCA1 = 0 
-                   xend=CCA1*scaling_factor_CCA,#Ending coordinate in CCA1  
-                   y=0, #Start in CCA2 = 0
-                   yend=CCA2*scaling_factor_CCA), #Ending coordinate in CCA2 
-               color="firebrick", #set color
-               arrow=arrow(length=unit(0.01,"npc"))#Set the size of the lines that form the tip of the arrow
-               )+
-  # Add environmental vars text
-  geom_text(data=df_environ, size = 3,
-            aes(x=CCA1*scaling_factor_CCA,
-                y=CCA2*scaling_factor_CCA,
-                label=rownames(df_environ),
-                hjust=0.5*(1-sign(CCA1)),#Add the text of each environmental var at the end of the arrow
-                vjust=0.5*(1-sign(CCA2))),#Add the text of each environmental var at the end of the arrow
-            color="firebrick")+
-    geom_text(data=taxa_cutoff, size = 3, 
-            aes(x=CCA1, 
-                y=CCA2,
-                label=rownames(taxa_cutoff),
-                hjust=0.5*(1-sign(CCA1)),#Add the text of each environmental var at the end of the arrow
-                vjust=0.5*(1-sign(CCA2))),#Add the text of each environmental var at the end of the arrow 
-            color="black")+
-  #Set bw theme
-  theme_bw()+
-  #Set x and y axis titles
-  labs(x=paste0("CCA1 (",cca1_varex," %)"),
-       y=paste0("CCA2 (",cca2_varex," %)"),
-       title = "CCA")
-
-# ggsave(file="CCA_taxa.svg", plot=CCA_taxa, width=8, height=7)
-```
-
-# CCA factor vs numeric
-```{r}
-#### factor
-cca_model_CA2 <- cca(CCA_otu_tax_t ~ alcohol + tobacco + smoking + scarcity + sex + location + yogurt_freq + literacy + Sisnu + grain, data = df_CA_final)
-
-vif.cca(cca_model_CA2)
-
-cca_model_CA2
-# 23.51% of species variance explained by the lifestyle factors in the model
-# CCA1    CCA2    CCA3    CCA4    CCA5    CCA6    CCA7    CCA8    CCA9   CCA10   CCA11   CCA12 
-# 0.07409 0.05030 0.03879 0.03302 0.03038 0.02885 0.02573 0.02464 0.02332 0.02157 0.01828 0.01707 
-
-# test significance of the model
-anova.cca(cca_model_CA2)
-#          Df ChiSquare      F Pr(>F)    
-# Model    12   0.38604 1.2807  0.001 ***
-# Residual 50   1.25593       
-anova.cca(cca_model_CA2, by = "terms")
-#             Df ChiSquare      F Pr(>F)    
-# alcohol      1   0.03796 1.5113  0.004 ** 
-# tobacco      1   0.02806 1.1173  0.170    
-# smoking      1   0.04122 1.6409  0.001 ***
-# scarcity     1   0.02916 1.1609  0.082 .  
-# sex          1   0.02336 0.9301  0.676    
-# location     1   0.04782 1.9039  0.001 ***
-# yogurt_freq  3   0.08225 1.0915  0.114    
-# literacy     1   0.02276 0.9060  0.783    
-# Sisnu        1   0.03959 1.5759  0.002 ** 
-# grain        1   0.03385 1.3477  0.009 ** 
-anova.cca(cca_model_CA2, by = "axis")
-#          Df ChiSquare      F Pr(>F)    
-# CCA1      1   0.07409 2.9494  0.001 ***
-# CCA2      1   0.05030 2.0025  0.019 *  
-# CCA3      1   0.03879 1.5441  0.415 
-
-### plot
-autoplot(cca_model_CA2)
-
-
-#### numeric
-cca_model_CA2_num <- cca(CCA_otu_tax_t ~ alcohol + tobacco + smoking + scarcity + sex + location + yogurt_freq + literacy + Sisnu + grain, data = df_CA_numeric2)
-
-vif.cca(cca_model_CA2_num)
-
-cca_model_CA2_num
-# 22.971% of species variance explained by the lifestyle factors in the model
-# CCA1     CCA2     CCA3     CCA4     CCA5     CCA6     CCA7     CCA8     CCA9    CCA10 
-# 0.026241 0.016596 0.010756 0.007121 0.006523 0.005259 0.004458 0.003945 0.002999 0.002431 
-
-# test significance of the model
-anova.cca(cca_model_CA2_num)
-#          Df ChiSquare      F Pr(>F)    
-# Model    10  0.086326 1.5502  0.001 ***
-# Residual 52  0.289573        
-anova.cca(cca_model_CA2_num, by = "terms")
-#             Df ChiSquare      F Pr(>F)    
-# alcohol      1  0.008906 1.5993  0.020 *  
-# tobacco      1  0.006803 1.2217  0.173    
-# smoking      1  0.014040 2.5212  0.001 ***
-# scarcity     1  0.007700 1.3827  0.077 .  
-# sex          1  0.005708 1.0250  0.373    
-# location     1  0.012723 2.2848  0.001 ***
-# yogurt_freq  1  0.006379 1.1454  0.252    
-# literacy     1  0.004824 0.8663  0.641    
-# Sisnu        1  0.011446 2.0554  0.003 ** 
-# grain        1  0.007798 1.4002  0.068 .  
-# Residual    52  0.289573 
-anova.cca(cca_model_CA2_num, by = "axis")
-#          Df ChiSquare      F Pr(>F)    
-# CCA1      1  0.026241 4.7122  0.001 ***
-# CCA2      1  0.016596 2.9802  0.012 *  
-# CCA3      1  0.010756 1.9314  0.458 
-
-### plot
-p1 <- autoplot(cca_model_CA2_num, title = "Autoplot Numeric")
-p2 <- autoplot(cca_model_CA2, title = "Autoplot Categorical")
-
-### categorical
-# Get CCA scores
-df_species  <- as.data.frame(summary(cca_model_CA2)$species[,1:2])# get the species CC1 and CC2 scores
-df_environ  <- as.data.frame(scores(cca_model_CA2, display = 'bp')) #get the environment vars CC1 and CC2 scores for arrows
-
-cca1_varex<-round(summary(cca_model_CA2)$cont$importance[2,1]*100,2) #Get percentage of variance explained by first axis
-cca2_varex<-round(summary(cca_model_CA2)$cont$importance[2,2]*100,2) #Get percentage of variance explained by second axis
-
-scaling_factor <- 2 # for better visualization
-
-p3 <- ggplot(df_species, 
-       aes(x=CCA1, y=CCA2)) + 
-  #Draw lines on x = 0 and y = 0
-  geom_hline(yintercept=0, 
-             linetype="dashed") +
-  geom_vline(xintercept=0, 
-             linetype="dashed") +
-  coord_fixed()+
-  # Add species points
-  geom_point(data=df_species, color = c("forestgreen"),
-            aes(x=CCA1,#Score in CCA1 to add species text
-                y=CCA2,#Score in CCA2 to add species text
-                # label=rownames(df_species),
-                # hjust=0.5*(1-sign(CCA1)),#Set the text horizontal alignment according to its position in the CCA plot
-                # vjust=0.5*(1-sign(CCA2))),#Set the text vertical alignment according to its position in the CCA plot
-            ))+
-  #Add environmental vars arrows
-  geom_segment(data=df_environ, 
-               aes(x=0, #Starting coordinate in CCA1 = 0 
-                   xend=CCA1*scaling_factor,#Ending coordinate in CCA1  
-                   y=0, #Start in CCA2 = 0
-                   yend=CCA2*scaling_factor), #Ending coordinate in CCA2 
-               color="firebrick1", #set color
-               arrow=arrow(length=unit(0.01,"npc"))#Set the size of the lines that form the tip of the arrow
-               )+
-  #Add environmental vars text
-  geom_text(data=df_environ, 
-            aes(x=CCA1*scaling_factor, 
-                y=CCA2*scaling_factor,
-                label=rownames(df_environ),
-                hjust=0.5*(1-sign(CCA1)),#Add the text of each environmental var at the end of the arrow
-                vjust=0.5*(1-sign(CCA2))),#Add the text of each environmental var at the end of the arrow 
-            color="firebrick1")+
-  #Set bw theme
-  theme_bw()+
-  #Set x and y axis titles
-  labs(x=paste0("CCA1 (",cca1_varex," %)"),
-       y=paste0("CCA2 (",cca2_varex," %)"),
-       title = "ggplot2 Categorical")
-
-#### numeric
-# Get CCA scores
-df_species_num  <- as.data.frame(summary(cca_model_CA2_num)$species[,1:2])# get the species CC1 and CC2 scores
-df_environ_num  <- as.data.frame(scores(cca_model_CA2_num, display = 'bp')) #get the environment vars CC1 and CC2 scores for arrows
-
-cca1_varex_num<-round(summary(cca_model_CA2_num)$cont$importance[2,1]*100,2) #Get percentage of variance explained by first axis
-cca2_varex_num<-round(summary(cca_model_CA2_num)$cont$importance[2,2]*100,2) #Get percentage of variance explained by second axis
-
-scaling_factor <- 2 # for better visualization
-
-p4 <- ggplot(df_species_num, 
-       aes(x=CCA1, y=CCA2)) + 
-  #Draw lines on x = 0 and y = 0
-  geom_hline(yintercept=0, 
-             linetype="dashed") +
-  geom_vline(xintercept=0, 
-             linetype="dashed") +
-  coord_fixed()+
-  # Add species points
-  geom_point(data=df_species_num, color = c("forestgreen"),
-            aes(x=CCA1,#Score in CCA1 to add species text
-                y=CCA2,#Score in CCA2 to add species text
-                # label=rownames(df_species),
-                # hjust=0.5*(1-sign(CCA1)),#Set the text horizontal alignment according to its position in the CCA plot
-                # vjust=0.5*(1-sign(CCA2))),#Set the text vertical alignment according to its position in the CCA plot
-            ))+
-  #Add environmental vars arrows
-  geom_segment(data=df_environ_num, 
-               aes(x=0, #Starting coordinate in CCA1 = 0 
-                   xend=CCA1*scaling_factor,#Ending coordinate in CCA1  
-                   y=0, #Start in CCA2 = 0
-                   yend=CCA2*scaling_factor), #Ending coordinate in CCA2 
-               color="firebrick1", #set color
-               arrow=arrow(length=unit(0.01,"npc"))#Set the size of the lines that form the tip of the arrow
-               )+
-  #Add environmental vars text
-  geom_text(data=df_environ_num, 
-            aes(x=CCA1*scaling_factor, 
-                y=CCA2*scaling_factor,
-                label=rownames(df_environ_num),
-                hjust=0.5*(1-sign(CCA1)),#Add the text of each environmental var at the end of the arrow
-                vjust=0.5*(1-sign(CCA2))),#Add the text of each environmental var at the end of the arrow 
-            color="firebrick1")+
-  #Set bw theme
-  theme_bw()+
-  #Set x and y axis titles
-  labs(x=paste0("CCA1 (",cca1_varex_num," %)"),
-       y=paste0("CCA2 (",cca2_varex_num," %)"),
-       title = "ggplot2 Numeric")
-
-
-grid.arrange(p1, p2, p3, p4, ncol = 2)
-
-```
-
