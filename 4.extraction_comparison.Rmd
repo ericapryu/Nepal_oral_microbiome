@@ -1,0 +1,148 @@
+---
+title: "extraction_comparison"
+author: "Erica Ryu"
+date: "11/21/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 4. Extraction Comparison
+
+## The purpose of this script is to compare the extraction kits
+
+## load packages
+```{r}
+library(phyloseq)
+library(data.table)
+library(ggplot2)
+library(vegan)
+library(dplyr)
+```
+
+## load in data
+```{r}
+phyloseq_complete <- readRDS("output/ps_complete.rds")
+
+# subset phyloseq object based on extraction kit
+qiagen <- subset_samples(phyloseq_complete, Condition=="Qiagen")
+psoil <- subset_samples(phyloseq_complete, Condition=="Psoil")
+```
+
+## set colors
+```{r}
+fivecolors <- c("darkslateblue", "deepskyblue", "lightblue3", "lightsalmon" , "firebrick")
+```
+
+## function
+```{r}
+beta_ordinate <- function(physeq){
+  # set up data
+  ps.prop <- transform_sample_counts(physeq, function(otu) otu/sum(otu))
+  ps.prop@otu_table <- na.omit(ps.prop@otu_table)
+  # calculate distance and ordinate
+  ord.pcoa <- ordinate(ps.prop, method = "PCoA", distance = "bray")
+}
+```
+
+## calculate bray curtis distance
+```{r}
+# refer to functions markdown file to load beta_ordinate function
+bray_ordinate_qiagen <- beta_ordinate(qiagen)
+bray_ordinate_psoil <- beta_ordinate(psoil)
+```
+
+## format PCoA axes
+```{r}
+pcoa.vec_qiagen <- as.data.frame(bray_ordinate_qiagen$vectors)
+pcoa.vec_psoil <- as.data.frame(bray_ordinate_psoil$vectors)
+
+# add kit info to column names
+colnames(pcoa.vec_qiagen) <- paste(colnames(pcoa.vec_qiagen),"qiagen",sep="_")
+colnames(pcoa.vec_psoil) <- paste(colnames(pcoa.vec_psoil),"psoil",sep="_")
+
+# makes rownames into an actual column
+setDT(pcoa.vec_qiagen, keep.rownames = TRUE)[]
+colnames(pcoa.vec_qiagen)[1] <- "SampleID"
+setDT(pcoa.vec_psoil, keep.rownames = TRUE)[]
+colnames(pcoa.vec_psoil)[1] <- "SampleID"
+
+# remove kit info from sampleID
+pcoa.vec_qiagen$SampleID <- sapply(strsplit(pcoa.vec_qiagen$SampleID, "_"), `[`, 1)
+pcoa.vec_psoil$SampleID <- sapply(strsplit(pcoa.vec_psoil$SampleID, "_"), `[`, 1)
+
+# merge into one table of overlapping samples
+pcoa.vec <- merge(pcoa.vec_qiagen, pcoa.vec_psoil, by="SampleID")
+
+# add lifestyle
+pcoa.vec$lifestyle <- ifelse(grepl("CHE", pcoa.vec$SampleID), "Foragers",
+                         ifelse(grepl("EUR", pcoa.vec$SampleID), "American Industrial", 
+                                ifelse(grepl("NEW0|NEW10|THA", pcoa.vec$SampleID), "Agriculturalists", 
+                                       ifelse(grepl("NEW11", pcoa.vec$SampleID), "Expats", 
+                                              ifelse(grepl("RAJ|RAU", pcoa.vec$SampleID), "Recently Settled", "potato")))))
+
+```
+
+## plot qiagen and psoil
+```{r}
+pcoa_qvp_1 <- ggplot(pcoa.vec, aes(x=Axis.1_qiagen, y=Axis.1_psoil, color = lifestyle)) +
+  geom_point(size=2) +
+  geom_abline(slope = -1)+
+  scale_color_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"))+
+  labs(x="Axis 1 Qiagen",
+       y="Axis 1 Psoil")
+
+# ggsave(file = "pcoa_qvp_1.svg", width = 5, height = 3, plot = pcoa_qvp_1)
+
+pcoa_qvp_2 <- ggplot(pcoa.vec, aes(x=Axis.2_qiagen, y=Axis.2_psoil, color=lifestyle)) +
+  geom_point(size=2) +
+  geom_abline(slope = -1)+
+  scale_color_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"))+
+  labs(x="Axis 2 Qiagen",
+       y="Axis 2 Psoil")
+
+# ggsave(file = "figures/pcoa_qvp_2.svg", width = 5, height = 3, plot = pcoa_qvp_2)
+
+```
+
+## PERMANOVA between kits
+```{r}
+metadata <- data.frame(sample_data(phyloseq_complete))
+dist <- phyloseq::distance(phyloseq_complete, method="bray",normalized=TRUE, parallel=FALSE, fast=TRUE) 
+adonis2(dist ~ Condition, data = metadata, permutations = 99999)
+```
+
+## plot combined figure
+```{r}
+# simplify to just the first two axes for each kit
+pcoa.vec_plot <- select(pcoa.vec, SampleID, Axis.1_qiagen, Axis.2_qiagen, Axis.1_psoil, Axis.2_psoil, lifestyle) 
+# switch orientation so that it matches
+pcoa.vec_plot$Axis.1_psoil <- -1*pcoa.vec_plot$Axis.1_psoil
+pcoa.vec_plot$Axis.2_psoil <- -1*pcoa.vec_plot$Axis.2_psoil
+
+extraction_comb <- ggplot(pcoa.vec_plot) +
+  geom_point(shape = c(3), size = 4, aes(x = Axis.1_qiagen, y = Axis.2_qiagen, color = lifestyle)) + 
+    # plus sign
+  geom_point(shape = c(17), size = 4, aes(x = Axis.1_psoil, y = Axis.2_psoil, color = lifestyle)) +
+    # triangle
+  geom_segment(aes(x = Axis.1_qiagen, xend = Axis.1_psoil, y = Axis.2_qiagen, yend = Axis.2_psoil)) +
+  scale_color_manual(name=NULL,
+                     values=fivecolors,
+                     breaks=c("Foragers", "Agriculturalists", "Recently Settled", "Expats", 
+                              "American Industrial"),
+                     labels=c("Foragers", "Agriculturalists", "Recently Settled", "Expats", 
+                              "American Industrial"))+
+  labs(x="Axis 1",
+       y="Axis 2")
+
+# ggsave(file = "figures/extraction_comb.svg", width = 6, height = 4, plot = extraction_comb)
+```
+

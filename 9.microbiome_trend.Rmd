@@ -1,0 +1,161 @@
+---
+title: "microbiome_trend"
+author: "Erica Ryu"
+date: "5/17/2023"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 9. Microbiome Trend Test
+
+## The purpose of this script is to determine which genera follow the lifestyle trend
+
+## load packages
+```{r}
+library(phyloseq)
+library(ggplot2)
+library(dplyr)
+library(DescTools)
+library(data.table)
+library(magrittr)
+library(tidyr)
+# library(qvalue)
+```
+
+## load data
+```{r}
+phyloseq_complete <- readRDS("output/ps_complete.rds")
+
+# subset based on extraction kit
+qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
+```
+
+## prep taxa table
+```{r}
+phy_genus <-  tax_glom(qiagen, "Genus", NArm = FALSE);phy_genus
+phy_genus_RA <- transform_sample_counts(phy_genus, function(otu) otu/sum(otu))
+otu_table <- as.data.frame(as.matrix(phy_genus_RA@otu_table))
+
+setDT(otu_table, keep.rownames = TRUE)[]
+colnames(otu_table)[1] <- "SampleID"
+
+otu_table2 <- otu_table %>% data.frame %>% set_rownames(.$SampleID)
+otu_table2 <- otu_table2[,-1]
+otu_table2 <- t(otu_table2)
+tax_table <- as.data.frame(as.matrix(phy_genus@tax_table))
+
+otu_tax <- merge(otu_table2, tax_table, by = 0, all = TRUE)
+
+# change colnames to genus name
+otu_tax$Genus <- replace_na(otu_tax$Genus, "_unclassified")
+
+# and add higher taxonomic level to unclassified
+otu_tax$Phylum <- ifelse(is.na(otu_tax$Phylum), otu_tax$Kingdom, otu_tax$Phylum)
+otu_tax$Class <- ifelse(is.na(otu_tax$Class), otu_tax$Phylum, otu_tax$Class)
+otu_tax$Order <- ifelse(is.na(otu_tax$Order), otu_tax$Class, otu_tax$Order)
+otu_tax$Family <- ifelse(is.na(otu_tax$Family), otu_tax$Order, otu_tax$Family)
+
+otu_tax$Genus <- ifelse(otu_tax$Genus == "_unclassified", paste(otu_tax$Family, otu_tax$Genus, sep = ""), otu_tax$Genus)
+
+# remove completely unclassified taxon
+otu_tax <- otu_tax[!is.na(otu_tax$Kingdom),]
+
+# make genus rownames
+rownames(otu_tax) <- otu_tax$Genus
+# and remove taxonomic columns
+otu_tax <- subset(otu_tax, select = -c(Row.names, Kingdom, Phylum, Class, Order, Family, Genus))
+
+# transpose
+trend_asvs <- as.data.frame(t(otu_tax))
+
+# add lifestyle info
+trend_asvs$lifestyle  <- ifelse(grepl("CHE",row.names(trend_asvs)), "Foragers",
+                              ifelse(grepl("EUR",row.names(trend_asvs)), "American Industrial", 
+                              ifelse(grepl("NEW00",row.names(trend_asvs)) | grepl("NEW10",row.names(trend_asvs)) | grepl("THA",row.names(trend_asvs)), "Agriculturalists",
+                              ifelse(grepl("NEW01",row.names(trend_asvs)) | grepl("NEW11",row.names(trend_asvs)), "Expats", "Recently Settled"))))
+
+# establish levels
+trend_asvs$lifestyle <- factor(trend_asvs$lifestyle, ordered = TRUE, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"))
+```
+
+## run trend test for each genus
+```{r}
+# make empty data frame that will be filled with trend test results
+trend_result <- data.frame(matrix(ncol = 3, nrow = 112))
+colnames(trend_result) <- c("taxa", "p_value", "BHadj_p_value")
+
+trend_result$taxa <- colnames(trend_asvs)
+
+# remove lifestyle row
+trend_result <- trend_result[!grepl("lifestyle", trend_result$taxa),]
+
+trend_vector <- c()
+
+for(i in colnames(trend_asvs)){
+  obj <- print(JonckheereTerpstraTest(as.formula(paste0(i, "~ lifestyle")),  data=trend_asvs))
+  trend_vector = c(trend_vector, obj$p.value)
+}
+## last iteration of trend test will always error as the error pertains to the lifestyle column. ignore error
+
+trend_result$p_value <- trend_vector
+
+# run multiple test correction
+trend_result$BHadj_p_value <- p.adjust(trend_result$p_value, method = "BH", n = length(trend_result$p_value))
+```
+
+## save output of trend test
+```{r}
+# write.csv(trend_result, file = "/Users/ericaryu/Documents/school_stuff/grad_school/PSU/lab/Nepal/Himalayan_oral_microbiome/coding/trend_result.csv")
+```
+
+## plot microbial abundances against lifestyle
+```{r}
+# log transform
+mk_logit <- function(otu_tax) {
+  return(log10(otu_tax+0.0001))}
+log_otu_tax <- map_df(otu_tax, .f = mk_logit)
+
+# format
+rownames(log_otu_tax) <- rownames(otu_tax)
+
+log_otu_tax <- t(log_otu_tax)
+
+log_otu_tax <- as.data.frame(log_otu_tax)
+
+# subset to significant trend microbes
+log_sig_taxa <- log_otu_tax[,c("Streptobacillus","Porphyromonadaceae_unclassified","Granulicatella","Moraxella","Simonsiella","Neisseria","Bacteroidetes_unclassified","Brachymonas","Atopobium")]
+
+# change format
+log_sig_taxa$sample_name <- row.names(log_sig_taxa)
+log_sig_taxa <- pivot_longer(log_sig_taxa, !sample_name, names_to = "Taxa", values_to = "Rel_abund")
+
+# add lifestyle back
+log_sig_taxa$lifestyle <- ifelse(grepl("CHE",log_sig_taxa$sample_name), "Foragers", 
+                ifelse(grepl("EUR",log_sig_taxa$sample_name), "American Industrial",
+                              ifelse(grepl("NEW00",log_sig_taxa$sample_name) | grepl("NEW10",log_sig_taxa$sample_name) | grepl("THA",log_sig_taxa$sample_name), "Agriculturalists",
+                              ifelse(grepl("NEW01",log_sig_taxa$sample_name) | grepl("NEW11",log_sig_taxa$sample_name), "Expats", "Recently Settled"))))
+
+# and set levels for lifestyle and taxa
+log_sig_taxa$lifestyle <- factor(log_sig_taxa$lifestyle, ordered = TRUE, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"))
+
+log_sig_taxa$Taxa<- factor(log_sig_taxa$Taxa, ordered = TRUE, levels=c("Streptobacillus","Porphyromonadaceae_unclassified","Granulicatella","Moraxella","Simonsiella","Neisseria","Bacteroidetes_unclassified","Brachymonas","Atopobium"))
+
+# plot
+plot_sig_taxa <- ggplot(log_sig_taxa, aes(x = lifestyle, y = Rel_abund, group = lifestyle), color = black) +
+  geom_violin(aes(fill=lifestyle), alpha=0.8) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
+  scale_x_discrete(limits=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
+  scale_fill_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats",  "American Industrial")) +
+  geom_jitter(size = 1, width=0.15, col="darkgreen") + facet_wrap(~Taxa, ncol = 3, scales = "fixed") +
+  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
+  theme(legend.position = "none") + xlab("")
+
+# ggsave(file="plot_sig_taxa.svg", plot=plot_sig_taxa, width=7, height=7)
+```

@@ -1,0 +1,155 @@
+---
+title: "aldex2_diff_abund"
+author: "Erica Ryu"
+date: "3/16/2023"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 8. Differential abundance
+
+## The purpose of this script is to conduct difference abundance analysis with ALDEx2.
+
+## load packages
+```{r}
+library(phyloseq)
+library(data.table)
+library(dplyr)
+library(magrittr)
+library(tidyr)
+library(ALDEx2)
+```
+
+## load phyloseq object
+```{r}
+# rarefied oral microbiome
+rarefied_phyloseq <- readRDS("output/rarefied_phyloseq.rds")
+
+# subset based on extraction kit
+rarefied_qiagen <- subset_samples(rarefied_phyloseq, Condition == "Qiagen")
+
+# rarefied gut microbiome
+rarefied_gut <- readRDS("output/gut_rarefied_phyloseq.rds")
+```
+
+## load colors
+```{r}
+fivecolors <- c("darkslateblue", "deepskyblue", "lightblue3", "lightsalmon" , "firebrick")
+```
+
+## prep taxa table for ALDEx2
+```{r}
+phy_genus <-  tax_glom(rarefied_qiagen, "Genus", NArm = FALSE);phy_genus
+otu_table <- as.data.frame(as.matrix(phy_genus@otu_table))
+
+setDT(otu_table, keep.rownames = TRUE)[]
+colnames(otu_table)[1] <- "SampleID"
+
+otu_table2 <- otu_table %>% data.frame %>% set_rownames(.$SampleID)
+otu_table2 <- otu_table2[,-1]
+otu_table2 <- t(otu_table2)
+tax_table <- as.data.frame(as.matrix(phy_genus@tax_table))
+
+otu_tax <- merge(otu_table2, tax_table, by = 0, all = TRUE)
+
+# change colnames to genus name
+otu_tax$Genus <- replace_na(otu_tax$Genus, "_unclassified")
+
+# add higher taxonomic level name to unclassified
+otu_tax$Phylum <- ifelse(is.na(otu_tax$Phylum), otu_tax$Kingdom, otu_tax$Phylum)
+otu_tax$Class <- ifelse(is.na(otu_tax$Class), otu_tax$Phylum, otu_tax$Class)
+otu_tax$Order <- ifelse(is.na(otu_tax$Order), otu_tax$Class, otu_tax$Order)
+otu_tax$Family <- ifelse(is.na(otu_tax$Family), otu_tax$Order, otu_tax$Family)
+
+otu_tax$Genus <- ifelse(otu_tax$Genus == "_unclassified", paste(otu_tax$Family, otu_tax$Genus, sep = ""), otu_tax$Genus)
+
+# remove completely unclassified taxon
+otu_tax <- otu_tax[!is.na(otu_tax$Kingdom),]
+
+# set genus column as rownames
+rownames(otu_tax) <- otu_tax$Genus
+
+# remove taxonomic columns
+otu_tax <- subset(otu_tax, select = -c(Row.names, Kingdom, Phylum, Class, Order, Family, Genus))
+```
+
+## aldex kw
+```{r}
+# set up comparison groups
+conds <- ifelse(grepl("CHE",otu_table$SampleID), "Foragers", 
+                ifelse(grepl("EUR",otu_table$SampleID), "American Industrialist",
+                              ifelse(grepl("NEW00",otu_table$SampleID) | grepl("NEW10",otu_table$SampleID) | grepl("THA",otu_table$SampleID), "Agriculturalists",
+                              ifelse(grepl("NEW01",otu_table$SampleID) | grepl("NEW11",otu_table$SampleID), "Expats", "Recently Settled"))))
+
+# transform data
+transform_kw <- aldex.clr(otu_tax, conds, mc.samples=1000, denom="all")
+
+# generate model
+set.seed(100)
+model_kw <- aldex.kw(transform_kw)
+```
+
+## prep taxa table for gut microbiome
+```{r}
+phy_genus_gut <-  tax_glom(rarefied_gut, "Genus", NArm = FALSE);phy_genus_gut
+otu_table_gut <- as.data.frame(as.matrix(phy_genus_gut@otu_table))
+
+setDT(otu_table_gut, keep.rownames = TRUE)[]
+colnames(otu_table_gut)[1] <- "SampleID"
+
+otu_table2_gut <- otu_table_gut %>% data.frame %>% set_rownames(.$SampleID)
+otu_table2_gut <- otu_table2_gut[,-1]
+otu_table2_gut <- t(otu_table2_gut)
+tax_table_gut <- as.data.frame(as.matrix(phy_genus_gut@tax_table))
+
+otu_tax_gut <- merge(otu_table2_gut, tax_table_gut, by = 0, all = TRUE)
+
+# change colnames to genus name
+otu_tax_gut$Genus <- replace_na(otu_tax_gut$Genus, "_unclassified")
+# and add higher taxonomic level to unclassified
+otu_tax_gut$Phylum <- ifelse(is.na(otu_tax_gut$Phylum), otu_tax_gut$Kingdom, otu_tax_gut$Phylum)
+otu_tax_gut$Class <- ifelse(is.na(otu_tax_gut$Class), otu_tax_gut$Phylum, otu_tax_gut$Class)
+otu_tax_gut$Order <- ifelse(is.na(otu_tax_gut$Order), otu_tax_gut$Class, otu_tax_gut$Order)
+otu_tax_gut$Family <- ifelse(is.na(otu_tax_gut$Family), otu_tax_gut$Order, otu_tax_gut$Family)
+
+otu_tax_gut$Genus <- ifelse(otu_tax_gut$Genus == "_unclassified", paste(otu_tax_gut$Family, otu_tax_gut$Genus, sep = ""), otu_tax_gut$Genus)
+
+# remove completely unclassified taxon
+otu_tax_gut <- otu_tax_gut[!is.na(otu_tax_gut$Kingdom),]
+
+# make genus rownames
+rownames(otu_tax_gut) <- otu_tax_gut$Genus
+# and remove taxonomic columns
+otu_tax_gut <- subset(otu_tax_gut, select = -c(Row.names, Kingdom, Phylum, Class, Order, Family, Genus))
+```
+
+## aldex kw for gut microbiome
+```{r}
+# set up comparison groups
+conds_gut <- ifelse(grepl("CHE",otu_table_gut$SampleID), "Foragers", 
+                ifelse(grepl("EUR",otu_table_gut$SampleID), "American Industrialist",
+                              ifelse(grepl("THA",otu_table_gut$SampleID), "Agriculturalists", "Recently Settled")))
+
+# transform data
+transform_kw_gut <- aldex.clr(otu_tax_gut, conds_gut, mc.samples=1000, denom="all")
+
+# generate model
+set.seed(100)
+model_kw_gut <- aldex.kw(transform_kw_gut)
+```
+
+## compare oral and gut
+```{r}
+model_kw_filt <- model_kw[model_kw$kw.eBH < 0.05,]
+model_kw_gut_filt <- model_kw_gut[model_kw_gut$kw.eBH < 0.05,] 
+```
+
+## save ALDEx2 results
+```{r}
+# write.csv(model_kw, file = "/Users/ericaryu/Documents/school_stuff/grad_school/PSU/lab/Nepal/Himalayan_oral_microbiome/coding/model_kw.csv")
+
+# write.csv(model_kw_gut, file = "/Users/ericaryu/Documents/school_stuff/grad_school/PSU/lab/Nepal/Himalayan_oral_microbiome/coding/model_kw_gut.csv")
+```

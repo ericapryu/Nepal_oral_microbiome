@@ -1,0 +1,228 @@
+---
+title: "random_forest"
+author: "Erica Ryu"
+date: "7/7/2023"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 6. Random Forest
+
+## The purpose of this script is to perform random forest on the Nepali oral microbiome
+
+## load packages
+```{r}
+library(phyloseq)
+library(randomForest)
+library(ggplot2)
+library(verification)
+library(reshape2)
+```
+
+## load data
+```{r}
+phyloseq_complete <- readRDS("output/ps_complete.rds")
+
+# subset based on extraction kit
+qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
+psoil <- subset_samples(phyloseq_complete, Condition == "Psoil")
+```
+
+## set up metadata for analysis
+```{r}
+CA_meta <- as.data.frame(phyloseq_complete@sam_data)
+CA_meta <- subset(CA_meta, Condition == "Qiagen")
+
+df_CA <- as.data.frame(as.matrix(CA_meta))
+df_CA_num <- dplyr::select(df_CA, "SEX2":"RHR")
+dim(df_CA_num)
+
+## remove factors with lots of NAs
+# filter out Americans
+df_CA_num$Lifestyle <- df_CA$Lifestyle
+wo_euro <- subset(df_CA_num, Lifestyle != "Industrial")
+
+# remove columns specific to women (pregnancy, menstruation, etc)
+wo_mens <- dplyr::select(wo_euro, -c("MENS2":"MISC2"))
+
+# remove columns for bitter taste perception
+wo_bitter <- dplyr::select(wo_mens, -c("BTP_CTRL2":"BTP_SBZ2"))
+
+# remove columns for vitals
+wo_vital <- dplyr::select(wo_bitter, -c("HGT2":"RHR"))
+
+# remove geographical info
+wo_geo <- dplyr::select(wo_vital, -c("LAT2":"ALT2"))
+
+## change sporadic NAs
+# change NAs in EXER_FREQ2
+wo_geo$EXER_FREQ2[is.na(wo_geo$EXER_FREQ2)] <- 0
+
+# change NAs in SICK_LOC2
+wo_geo$SICK_LOC2[is.na(wo_geo$SICK_LOC2)] <- 0
+
+# change NAs in BRUSH_FREQ2
+wo_geo$BRUSH_FREQ2[is.na(wo_geo$BRUSH_FREQ2)] <- 0
+
+# change NAs in BLKT2
+blkt <- wo_geo
+blkt$BLKT2[is.na(blkt$BLKT2)] <- 0
+
+# change NA in HS
+household <- blkt
+household$HS2[is.na(household$HS2)] <- 2
+
+## final df for CA
+df_CA_wo_lifestyle <- dplyr::select(household, -c("Lifestyle"))
+df_CA_final <- as.data.frame(sapply(df_CA_wo_lifestyle, as.numeric))
+
+dim(df_CA_final)
+```
+
+## make labels human readable
+```{r}
+colnames(df_CA_final) <- c("sex", "literacy", "location", "drinking_water", "fuel", 
+                          "kitchen_loc", "toilet", "grain", "Sisnu", "fish", 
+                          "meat", "black_tea", "milk_tea", "soda", "milk", 
+                          "yogurt", "yogurt_freq", "fermented", "ferm_freq", "food_source", 
+                          "scarcity", "smoking", "tobacco", "alcohol", "exercise", 
+                          "exercise_freq", "sick_checkup", "checkup_loc", "health_travel", "meds", 
+                          "ayurvedic", "brushing", "brushing_freq", "age", "education", 
+                          "household", "children")
+```
+
+## random forest with lifestyle variables
+```{r}
+# add lifestyle info
+df_RF <- df_CA_final
+df_RF$Lifestyle <- household$Lifestyle
+
+# check for balance
+table(df_RF$Lifestyle)
+
+set.seed(100)
+rf <- randomForest(as.factor(Lifestyle)~., data=df_RF, proximity=TRUE) 
+print(rf)
+
+## plot confusion matrix
+# extract the confusion matrix
+cm <- as.data.frame(rf$confusion)
+
+# remove class error
+cm <- cm[, !(colnames(cm) %in% c("class.error"))]
+
+# convert to percentage based on row total
+cm_percent <- cm/rowSums(cm)
+
+# convert format
+cm_df <- melt(as.data.frame(cm_percent))
+
+# fix names 
+colnames(cm_df) <- c("Predicted", "Count")
+
+# fix label
+cm_df$Predicted <- gsub("RecentlySettled", "Recently Settled", cm_df$Predicted)
+
+# add true label
+cm_df$True <- rep(c("Agriculturalists", "Expats", "Foragers", "Recently Settled"), times = 4)
+
+# reorder for convenience
+cm_df <- cm_df[, c("True", "Predicted", "Count")]
+
+# set levels
+cm_df$True <- factor(cm_df$True, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats"))
+cm_df$Predicted <- factor(cm_df$Predicted, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats"))
+
+cm_meta <- ggplot(cm_df, aes(x = True, y = Predicted, fill = Count)) +
+  geom_tile() +
+  scale_fill_gradient(low="white", high="#009194")+
+  labs(x = "True Label",y = "Predicted Label", title = "Lifestyle Metadata Confusion Matrix")
+
+# ggsave(file="figures/cm_meta.svg", plot=cm_meta, width=8, height=6)
+
+```
+
+## random forest with microbes
+```{r}
+# transform to relative abundance
+relabund_qiagen <- transform_sample_counts(qiagen, function(otu) otu/sum(otu))
+
+# get rel abund table
+df_RF_mic <- as.data.frame(as.matrix(relabund_qiagen@otu_table))
+
+# add lifestyle info
+df_RF_mic$lifestyle  <- ifelse(grepl("CHE",row.names(df_RF_mic)), "Foragers",
+                              ifelse(grepl("EUR", row.names(df_RF_mic)), "American Industrialists",
+                              ifelse(grepl("NEW00",row.names(df_RF_mic)) | grepl("NEW10",row.names(df_RF_mic)) | grepl("THA",row.names(df_RF_mic)), "Agriculturalists",
+                              ifelse(grepl("NEW01",row.names(df_RF_mic)) | grepl("NEW11",row.names(df_RF_mic)), "Expats", "Recently Settled"))))
+
+# check for balance
+table(df_RF_mic$lifestyle)
+
+set.seed(101)
+rf_mic <- randomForest(as.factor(lifestyle)~., data=df_RF_mic, proximity=TRUE) 
+print(rf_mic)
+
+# check for optimal ntree
+plot(rf_mic)
+## error rate doesn't stabilize as is, so i will increase trees to 1000
+         
+set.seed(102)
+rf_mic_adj <- randomForest(as.factor(lifestyle)~., data=df_RF_mic, ntree=1000, proximity=TRUE) 
+print(rf_mic_adj)
+
+## plot confusion matrix
+# extract the confusion matrix
+cm_mic <- as.data.frame(rf_mic_adj$confusion)
+
+# remove class error
+cm_mic <- cm_mic[, !(colnames(cm_mic) %in% c("class.error"))]
+
+# convert to percentage based on row total
+cm_mic_percent <- cm_mic/rowSums(cm_mic)
+
+# convert format
+cm_mic_df <- melt(as.data.frame(cm_mic_percent))
+
+# fix names 
+colnames(cm_mic_df) <- c("Predicted", "Count")
+
+# add true label
+cm_mic_df$True <- rep(c("Agriculturalists", "American Industrialists", "Expats", "Foragers", "Recently Settled"), times = 5)
+
+# reorder for convenience
+cm_mic_df <- cm_mic_df[, c("True", "Predicted", "Count")]
+
+# set levels
+cm_mic_df$True <- factor(cm_mic_df$True, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrialists"))
+cm_mic_df$Predicted <- factor(cm_mic_df$Predicted, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrialists"))
+
+cm_mic <- ggplot(cm_mic_df, aes(x = True, y = Predicted, fill = Count)) +
+  geom_tile() +
+  scale_fill_gradient(low="white", high="#009194", limits=c(0,1))+
+  labs(x = "True Label",y = "Predicted Label", title = "Microbiome Confusion Matrix")
+
+# ggsave(file="figures/cm_mic.svg", plot=cm_mic, width=8, height=6)
+```
+
+## check random chance
+```{r}
+# set lifestyles to numbers
+obs <- df_RF_mic$lifestyle
+
+obs <- ifelse(obs == "Foragers", 1, 
+              ifelse(obs == "American Industrialists", 5,
+                     ifelse(obs == "Agriculturalists", 3,
+                            ifelse(obs == "Expats", 4, 2))))
+
+
+pred <- c(rep(3, 30), 5, rep(1, 8), rep(2, 30))
+
+rc_cm_mic <- verify(obs, pred, frcst.type = "cat", obs.type = "cat")
+
+summary(rc_cm_mic)
+```
+

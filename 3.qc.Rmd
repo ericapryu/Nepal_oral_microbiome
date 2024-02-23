@@ -1,0 +1,492 @@
+---
+title: "qc"
+author: "Erica Ryu"
+date: "1/30/2022"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 3. Quality control
+
+## The purpose of this script is to perform QC and clean the reads.
+
+## load packages
+```{r}
+library("phyloseq")
+library("ggplot2")
+library("microbiome")
+library("dplyr")
+library("data.table")
+library("picante")
+```
+
+## load data
+```{r}
+phyloseq.noncontam_all <- readRDS("output/ps_noncontam.rds") # phyloseq object post decontam
+phyloseq <- readRDS("output/oralmicrobiome_ps.rds")
+```
+
+## set colors
+```{r}
+fivecolors <- c("darkslateblue", "deepskyblue", "lightblue3", "lightsalmon" , "firebrick")
+twocolors <- c("white", "#009194")
+```
+
+## remove low abundance samples
+```{r}
+summarize_phyloseq(phyloseq.noncontam_all)
+readcount(phyloseq.noncontam_all)
+
+# remove samples with less than 5 reads and controls
+phyloseq_prune <- phyloseq.noncontam_all %>%
+  subset_samples(!SampleID=="CHE0014TZ_genotek") %>%
+  subset_samples(!SampleID=="control_psoil") %>%
+  subset_samples(!SampleID=="CTRL1_psoil") %>%
+  subset_samples(!SampleID=="CTRL2_genotek") %>%
+  subset_samples(!SampleID=="EUR1002_psoil") %>%
+  subset_samples(!SampleID=="EUR0012_psoil") %>%
+  subset_samples(!SampleID=="extraction.control_psoil") %>%
+  subset_samples(!SampleID=="NEW0041A_psoil") %>%
+  subset_samples(!SampleID=="NEW0108_psoil") %>%
+  subset_samples(!SampleID=="NEW0109_psoil") %>%
+  subset_samples(!SampleID=="NEW010X_psoil") %>%
+  subset_samples(!SampleID=="None_genotek2") %>%
+  subset_samples(!SampleID=="THA0065JZ_psoil") %>%
+  subset_samples(!SampleID=="THA0068JZ_genotek") %>%
+  subset_samples(!SampleID=="THA1063YZ_psoil") %>%
+  subset_samples(!SampleID=="THA0068JZ_psoil") %>%
+  subset_samples(!SampleID=="THA1069YZ_psoil")
+```
+
+## keep taxa that appear at least 5 times across at least two samples
+```{r}
+phyloseq_prunetaxa <- filter_taxa(phyloseq_prune, function(x) sum(x > 5) >= 2, TRUE)
+
+## save phyloseq object
+# saveRDS(phyloseq_prunetaxa, "ps_noncontam_pruned.rds")
+```
+
+## examine read depth across all samples
+```{r}
+reads <- data.table(as(sample_data(phyloseq_prunetaxa), "data.frame"),
+                 TotalReads = sample_sums(phyloseq_prunetaxa), keep.rownames = TRUE)
+
+# subset samples based on extraction kit
+genotek_reads <- subset(reads, Condition == "Qiagen")
+psoil_reads <- subset(reads, Condition == "Psoil")
+
+plot_genotek_reads <- ggplot(genotek_reads, aes(x= reorder(SampleID, TotalReads), y=TotalReads, fill=Lifestyle)) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 26927, linetype="dashed") +
+  scale_fill_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "RecentlySettled", "Agriculturalists", "Expats", "Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats",  "American Industrial"))+
+  labs(title = "Qiagen read counts",
+       x = "samples", 
+       y = "reads") +
+  # scale_y_continuous(expand = expansion(mult = c(0, .1))) +
+  ylim(0,95000)+
+  theme(axis.text.x = element_blank())
+
+# ggsave(file = "figures/genotek_reads.svg", width = 6, height = 3, plot = plot_genotek_reads)
+
+plot_psoil_reads <- ggplot(psoil_reads, aes(x= reorder(SampleID, TotalReads), y=TotalReads, fill=Lifestyle)) +
+  geom_bar(stat = "identity") +
+  geom_hline(yintercept = 26927, linetype = "dashed") +
+  scale_fill_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "RecentlySettled", "Agriculturalists", "Expats", "Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats",  "American Industrial"))+
+  labs(title = "PowerSoil read counts",
+       x = "samples", 
+       y = "reads") +
+    ylim(0,95000)+
+  theme(axis.text.x = element_blank())
+
+# ggsave(file = "figures/psoil_reads.svg", width = 6, height = 3, plot = plot_psoil_reads)
+
+# throw out the samples that are below 26927 reads based on read depth
+which(genotek_reads == 17743, arr.ind=TRUE) # tells me which row that the sample is in
+phyloseq_prunetaxa <- subset_samples(phyloseq_prunetaxa, !SampleID=="NEW0104_genotek")
+
+## save object again
+# saveRDS(phyloseq_prunetaxa, "output/ps_noncontam_pruned.rds")
+```
+
+## generate rooted tree for any unifrac or phylogenetic distances
+```{r}
+pick_new_outgroup <- function(tree.unrooted){
+require("magrittr")
+require("data.table")
+require("ape") # ape::Ntip
+# tablify parts of tree that we need.
+treeDT <-
+     cbind(
+         data.table(tree.unrooted$edge),
+         data.table(length = tree.unrooted$edge.length)
+     )[1:Ntip(tree.unrooted)] %>%
+ cbind(data.table(id = tree.unrooted$tip.label))
+ # Take the longest terminal branch as outgroup
+ new.outgroup <- treeDT[which.max(length)]$id
+ return(new.outgroup) }
+
+# apply function
+my.tree <- phy_tree(phyloseq_prunetaxa)
+out.group <- pick_new_outgroup(my.tree)
+
+# root the tree
+new.tree <- ape::root(my.tree, outgroup=out.group, resolve.root=TRUE)
+phy_tree(phyloseq_prunetaxa) <- new.tree
+```
+
+## generate rarefaction curves
+```{r}
+# function for rarefaction curve
+calculate_rarefaction_curves <- function(psdata, measures, depths, parallel=FALSE) {
+  require('plyr') # ldply
+  require('reshape2') # melt
+  require('doParallel')
+
+  # set parallel options if required
+  if (parallel) {
+    paropts  <- list(.packages=c("phyloseq", "reshape2"))
+  } else {
+    paropts  <- NULL
+  }
+
+  estimate_rarified_richness <- function(psdata, measures, depth) {
+    if(max(sample_sums(psdata)) < depth) return()
+    psdata <- prune_samples(sample_sums(psdata) >= depth, psdata)
+
+    rarified_psdata <- rarefy_even_depth(psdata, depth, verbose = FALSE)
+
+    alpha_diversity <- estimate_richness(rarified_psdata, measures = measures)
+
+    # as.matrix forces the use of melt.array, which includes the Sample names (rownames)
+    molten_alpha_diversity <- melt(as.matrix(alpha_diversity), varnames = c('Sample', 'Measure'), value.name = 'Alpha_diversity')
+
+    molten_alpha_diversity
+  }
+
+  names(depths) <- depths # this enables automatic addition of the Depth to the output by ldply
+  rarefaction_curve_data <- ldply(depths, estimate_rarified_richness, psdata = phyloseq_prunetaxa, measures = measures, .id = 'Depth', .progress = ifelse(interactive() && ! parallel, 'text', 'none'), .parallel=parallel, .paropts=paropts)
+
+  # convert Depth from factor to numeric
+  rarefaction_curve_data$Depth <- as.numeric(levels(rarefaction_curve_data$Depth))[rarefaction_curve_data$Depth]
+
+  rarefaction_curve_data
+}
+
+# calculate rarefaction curves
+rarefaction_curve_data <- calculate_rarefaction_curves(phyloseq_prunetaxa, c('Observed', 'Shannon'), rep(c(1, 10, 100, 1000, 1:100 * 10000), each = 10))
+summary(rarefaction_curve_data)
+
+rarefaction_curve_data_summary <- ddply(rarefaction_curve_data, c('Depth', 'Sample', 'Measure'), summarise, Alpha_diversity_mean = mean(Alpha_diversity), Alpha_diversity_sd = sd(Alpha_diversity))
+
+rarefaction_curve_data_summary_verbose <- merge(rarefaction_curve_data_summary, data.frame(sample_data(phyloseq_prunetaxa)), by.x = 'Sample', by.y = 'row.names')
+
+# plot rarefaction curves
+rarefy <- ggplot(
+  data = rarefaction_curve_data_summary_verbose,
+  mapping = aes(
+    x = Depth,
+    y = Alpha_diversity_mean,
+    ymin = Alpha_diversity_mean - Alpha_diversity_sd,
+    ymax = Alpha_diversity_mean + Alpha_diversity_sd,
+    colour = Lifestyle,
+    group = Sample,
+  )
+) + geom_line(alpha = 0.5
+) + geom_point(alpha = 0.5) + 
+  scale_colour_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "RecentlySettled", "Agriculturalists", "Expats", "Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats",  "American Industrial")) +
+  facet_wrap(
+  facets = ~ Measure,
+  scales = 'free_y'
+)
+
+# ggsave(file = "figures/rarefy.svg", plot = rarefy, width=8, height=6)
+
+# function for calculating alpha diversity
+set.seed(100)
+ compute_alphadiv<-function(phyloseqobj,trials,rarefaction_depth){
+    min_lib= rarefaction_depth
+    nsamp = nsamples(phyloseqobj)
+    trials = trials
+    tree = phy_tree(phyloseqobj)
+   
+    richness <- matrix(nrow = nsamp, ncol = trials)
+    row.names(richness) <- sample_names(phyloseqobj)
+    
+    evennessF <- matrix(nrow = nsamp, ncol = trials)
+    row.names(evennessF) <- sample_names(phyloseqobj)
+    
+    evennessS <- matrix(nrow = nsamp, ncol = trials)
+    row.names(evennessS) <- sample_names(phyloseqobj)
+    
+    evennessI <- matrix(nrow = nsamp, ncol = trials)
+    row.names(evennessI) <- sample_names(phyloseqobj)
+    
+    faiths <- matrix(nrow = nsamp, ncol = trials)
+    row.names(faiths) <- sample_names(phyloseqobj)
+  
+    set.seed(007)
+    for (i in 1:trials) {
+      # Subsample
+      r <- rarefy_even_depth(phyloseqobj, sample.size = min_lib, verbose = FALSE, replace = TRUE)
+      
+      # Calculate richness
+      rich <- as.numeric(as.matrix(estimate_richness(r, measures = "Observed")))
+      richness[ ,i] <- rich
+      
+      # Calculate evenness Fisher
+      evenF <- as.numeric(as.matrix(estimate_richness(r, measures = "Fisher")))
+      evennessF[ ,i] <- evenF
+    
+      # Calculate evenness Shannon
+      evenS <- as.numeric(as.matrix(estimate_richness(r, measures = "Shannon")))
+      evennessS[ ,i] <- evenS
+      
+      # Calculate evenness Simpson
+      evenI <- as.numeric(as.matrix(estimate_richness(r, measures = "Simpson")))
+      evennessI[ ,i] <- evenI
+      
+      # calculate faith's PD
+      pd_all <- pd(as.matrix(r@otu_table), tree, include.root=TRUE)
+      pd_extract <- subset(pd_all, select = -c(SR))
+      faithspd <- as.numeric(as.matrix(pd_extract))
+      faiths[ ,i] <- faithspd
+    }
+  
+    SampleID <- row.names(richness)
+    mean <- apply(richness, 1, mean)
+    sd <- apply(richness, 1, sd)
+    measure <- rep("Richness", nsamp)
+    rich_stats <- data.frame(SampleID, mean, sd, measure)
+  
+    SampleID <- row.names(evennessF)
+    mean <- apply(evennessF, 1, mean)
+    sd <- apply(evennessF, 1, sd)
+    measure <- rep("Fisher", nsamp)
+    even_statsF <- data.frame(SampleID, mean, sd, measure)
+  
+    SampleID <- row.names(evennessS)
+    mean <- apply(evennessS, 1, mean)
+    sd <- apply(evennessS, 1, sd)
+    measure <- rep("Shannon", nsamp)
+    even_statsS <- data.frame(SampleID, mean, sd, measure)
+  
+    SampleID <- row.names(evennessI)
+    mean <- apply(evennessI, 1, mean)
+    sd <- apply(evennessI, 1, sd)
+    measure <- rep("Simpson", nsamp)
+    even_statsI <- data.frame(SampleID, mean, sd, measure)
+    
+    SampleID <- row.names(faiths)
+    mean <- apply(faiths, 1, mean)
+    sd <- apply(faiths, 1, sd)
+    measure <- rep("Faiths", nsamp)
+    faiths_stats <- data.frame(SampleID, mean, sd, measure)
+  
+    alpha <- rbind(rich_stats, even_statsF, even_statsS, even_statsI, faiths_stats)
+  
+    s <- data.frame(sample_data(phyloseqobj))
+    alphadiv <- merge(alpha, s, by = "SampleID")
+    alphadiv$rarefaction=rep(min_lib,dim(alphadiv)[1])
+    return(alphadiv)
+ } 
+ 
+# calculate alpha diversity - include number of trials, number of sequences to subsample
+rfxn <- compute_alphadiv(phyloseq_prunetaxa,1000,26927)
+```
+
+## generate rarefied phyloseq object subsetted to 26927 sequences
+```{r}
+raref_phyloseq_prunetaxa <- rarefy_even_depth(phyloseq_prunetaxa, sample.size = 26927, replace = TRUE, rngseed = 123)
+```
+
+## check individuals currently taking antibiotics
+```{r}
+rfxn_antibio <- rfxn 
+
+# subset to individuals currently on antibiotics
+rfxn_antibio$ANTIBIO_curr <- ifelse(rfxn_antibio$ANTIBIO == "A", "Currently on Antibiotics", "Not Currently")
+
+# remove individuals with NA in antibiotic status
+rfxn_antibio <- rfxn_antibio[!is.na(rfxn_antibio$ANTIBIO_curr),]
+
+# subset to extraction kit
+qiagen_rfxn_antibio <- subset(rfxn_antibio, Condition == "Qiagen")
+psoil_rfxn_antibio <- subset(rfxn_antibio, Condition == "Psoil")
+
+# plot for each extraction kit
+qiagen_antibio_plot <- ggplot(qiagen_rfxn_antibio, aes(x = ANTIBIO_curr, y = mean, group = ANTIBIO_curr), color = black) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2) +
+  geom_jitter(size = 1, col="darkgreen", position=position_jitter(width=0.1)) + facet_wrap(~measure, ncol = 2, scales = "free") +  
+  theme(axis.title.x = element_blank(),axis.title.y = element_blank()) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) + 
+  labs(title = "Qiagen kit") +
+  theme(legend.position = "none") + xlab("")
+
+# ggsave(file = "figures/qiagen_antibio_plot.svg", plot = qiagen_antibio_plot, width = 4, height = 9)
+
+psoil_antibio_plot <- ggplot(psoil_rfxn_antibio, aes(x = ANTIBIO_curr, y = mean, group = ANTIBIO_curr), color = black) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2) +
+  geom_jitter(size = 1, col="darkgreen", position=position_jitter(width=0.1)) + facet_wrap(~measure, ncol = 2, scales = "free") +  
+  theme(axis.title.x = element_blank(),axis.title.y = element_blank()) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) + 
+  labs(title = "PowerSoil kit") +
+  theme(legend.position = "none") + xlab("")
+
+# ggsave(file = "figures/psoil_antibio_plot.svg", plot = psoil_antibio_plot, width = 4, height = 9)
+
+# kruskal wallis for significance
+shannon_qiagen_antibio <- subset(qiagen_rfxn_antibio, measure == "Shannon")
+shannon_psoil_antibio <- subset(psoil_rfxn_antibio, measure == "Shannon")
+kruskal.test(mean ~ ANTIBIO_curr, data = shannon_qiagen_antibio)
+kruskal.test(mean ~ ANTIBIO_curr, data = shannon_psoil_antibio)
+
+richness_qiagen_antibio <- subset(qiagen_rfxn_antibio, measure == "Richness")
+richness_psoil_antibio <- subset(psoil_rfxn_antibio, measure == "Richness")
+kruskal.test(mean ~ ANTIBIO_curr, data = richness_qiagen_antibio)
+kruskal.test(mean ~ ANTIBIO_curr, data = richness_psoil_antibio)
+
+# who was on antibiotics?
+phyloseq_check <- subset_samples(phyloseq_prunetaxa, ANTIBIO=="A")
+## two agriculturalists - one from Newar, one from Tharu
+
+# remove samples that were on antibiotics
+phyloseq_complete <- subset_samples(phyloseq_prunetaxa, !ANTIBIO=="A" | is.na(ANTIBIO))
+
+# remove antibiotic samples from rarefied phyloseq object as well
+rarefied_phyloseq <- subset_samples(raref_phyloseq_prunetaxa, !ANTIBIO=="A" | is.na(ANTIBIO)) 
+
+# remove samples from rarefied alpha diversity
+rfxn <- rfxn[!grepl("A", rfxn$ANTIBIO),]
+```
+
+## save all objects
+```{r}
+# saveRDS(phyloseq_complete, "output/ps_complete.rds")
+# saveRDS(rarefied_phyloseq, "output/rarefied_phyloseq.rds")
+# write.csv(rfxn, file = "output/rarefaction_edit05152023.csv")
+```
+
+## how many samples per lifestyle/population left after removing samples?
+```{r}
+# pre removal
+df.mat <- as.matrix(phyloseq@sam_data) # Put sample_data into a ggplot-friendly data.frame
+df.mat <- as.data.frame(df.mat)
+df.mat_prune <- as.matrix(phyloseq_complete@sam_data) # Put sample_data into a ggplot-friendly data.frame
+df.mat_prune <- as.data.frame(df.mat_prune)
+
+# separate by kit
+df_mat_qiagen <- subset(df.mat, Condition == "Qiagen") 
+df_mat_psoil <- subset(df.mat, Condition == "Psoil")
+df_mat_prune_qiagen <- subset(df.mat_prune, Condition == "Qiagen") 
+df_mat_prune_psoil <- subset(df.mat_prune, Condition == "Psoil")
+
+# subset to just lifestyle for both
+df_life_qiagen <- df_mat_qiagen[,c("Lifestyle"), drop=FALSE]
+df_life_psoil <- df_mat_psoil[,c("Lifestyle"), drop=FALSE]
+df_prune_life_qiagen <- df_mat_prune_qiagen[,c("Lifestyle"), drop=FALSE]
+df_prune_life_psoil <- df_mat_prune_psoil[,c("Lifestyle"), drop=FALSE]
+
+# how many samples per lifestyle?
+df_life_qiagen %>% 
+  group_by(Lifestyle) %>%
+  summarise(no_rows = length(Lifestyle))
+
+df_life_psoil %>% 
+  group_by(Lifestyle) %>%
+  summarise(no_rows = length(Lifestyle))
+
+df_prune_life_qiagen %>% 
+  group_by(Lifestyle) %>%
+  summarise(no_rows = length(Lifestyle))
+
+df_prune_life_psoil %>% 
+  group_by(Lifestyle) %>%
+  summarise(no_rows = length(Lifestyle))
+
+before <- c(rep("Before", 5))
+after <- c(rep("After", 5))
+lifestyle <- c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "Industrial")
+before_count_qiagen <- c(15, 21, 24, 8, 6)
+after_count_qiagen <- c(14, 21, 23, 7, 6)
+before_count_psoil <- c(14, 22, 23, 8, 4)
+after_count_psoil <- c(14, 22, 18, 8, 2)
+
+before_df_qiagen <- data.frame(before, lifestyle, before_count_qiagen)
+colnames(before_df_qiagen) <- c("state", "lifestyle", "count")
+after_df_qiagen <- data.frame(after, lifestyle, after_count_qiagen)
+colnames(after_df_qiagen) <- c("state", "lifestyle", "count")
+
+before_df_psoil <- data.frame(before, lifestyle, before_count_psoil)
+colnames(before_df_psoil) <- c("state", "lifestyle", "count")
+after_df_psoil <- data.frame(after, lifestyle, after_count_psoil)
+colnames(after_df_psoil) <- c("state", "lifestyle", "count")
+
+comb_qiagen <- rbind(before_df_qiagen, after_df_qiagen)
+comb_qiagen$state <- factor(comb_qiagen$state, levels=c("Before", "After"))
+comb_qiagen$lifestyle <- factor(comb_qiagen$lifestyle, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "Industrial"))
+
+comb_psoil <- rbind(before_df_psoil, after_df_psoil)
+comb_psoil$state <- factor(comb_psoil$state, levels=c("Before", "After"))
+comb_psoil$lifestyle <- factor(comb_psoil$lifestyle, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "Industrial"))
+
+qiagen_sample_count <- ggplot(comb_qiagen, aes(fill=state, x=lifestyle, y=count)) +
+  geom_bar(position="dodge", stat="identity", color = "black") +
+    scale_fill_manual(name=NULL,
+                    values=twocolors,
+                    breaks=c("Before", "After"),
+                    labels=c("Before", "After")) +
+  geom_text(aes(label=count), position=position_dodge(width=0.9), vjust=-0.25) +
+  labs(title = "Qiagen kit")
+
+# ggsave(file = "figures/qiagen_sample_count.svg", width = 7, height = 4, plot = qiagen_sample_count)
+
+psoil_sample_count <- ggplot(comb_psoil, aes(fill=state, x=lifestyle, y=count)) + 
+  geom_bar(position="dodge", stat="identity", color = "black") +
+    scale_fill_manual(name=NULL,
+                    values=twocolors,
+                    breaks=c("Before", "After"),
+                    labels=c("Before", "After")) +
+  geom_text(aes(label=count), position=position_dodge(width=0.9), vjust=-0.25) +
+  labs(title = "PowerSoil kit")
+
+# ggsave(file = "figures/psoil_sample_count.svg", width = 7, height = 4, plot = psoil_sample_count)
+
+```
+
+## sample size per extraction kit
+```{r}
+df_psoil <- after_df_psoil
+df_psoil$state <- gsub("After", "Psoil", df_psoil$state)
+df_qiagen <- after_df_qiagen
+df_qiagen$state <- gsub("After", "Qiagen", df_qiagen$state)
+
+comb <- rbind(df_psoil, df_qiagen)
+
+comb$lifestyle <- gsub("Industrial", "American Industrial", comb$lifestyle)
+comb$lifestyle <- factor(comb$lifestyle, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"))
+
+sample_extraction_kit <- ggplot(comb, aes(fill=state, x=lifestyle, y=count)) + 
+  geom_bar(position="dodge", stat="identity") +
+    scale_fill_manual(name=NULL,
+                    values=twocolors,
+                    breaks=c("Psoil", "Qiagen"),
+                    labels=c("PowerSoil", "Qiagen")) +
+  geom_text(aes(label=count), position=position_dodge(width=0.9), vjust=-0.25) +
+  labs(title = "Sample Size per Extraction Kit for each Lifestyle", x = "Lifestyle", y = " Sample Size")+
+  theme_classic()
+
+# ggsave(file = "figures/sample_extraction_kit.svg", width = 7, height = 5, plot = sample_extraction_kit)
+```
+

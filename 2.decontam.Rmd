@@ -1,0 +1,169 @@
+---
+title: "decontam"
+author: "Erica Ryu"
+date: "12/6/2021"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 2. Remove contaminants via decontam
+
+## The purpose of this script is to remove contaminants via decontam using both the frequency and prevalance methods
+
+## load packages
+```{r}
+library("phyloseq");packageVersion("phyloseq")
+library("ggplot2");packageVersion("ggplot2")
+library("decontam");packageVersion("decontam")
+library("microbiome");packageVersion("microbiome")
+library("dplyr");packageVersion("dplyr")
+library("data.table");packageVersion("data.table")
+```
+
+## load in phyloseq object
+```{r}
+phyloseq <- readRDS("output/oralmicrobiome_ps.rds")
+```
+
+## check library sizes
+```{r}
+df <- as.data.frame(sample_data(phyloseq)) # Put sample_data into a ggplot-friendly data.frame
+df$LibrarySize <- sample_sums(phyloseq)
+df <- df[order(df$LibrarySize),]
+df$Index <- seq(nrow(df))
+df$Sample_or_Control <- ifelse(is.na(df$Lifestyle), "control", "sample" )
+
+# plot
+ggplot(data=df, aes(x=Index, y=LibrarySize, color=Sample_or_Control)) + 
+  geom_point()
+```
+
+## remove contaminating taxa using "frequency" method
+### In this method, the distribution of the frequency of each sequence feature as a function of the input DNA concentration is used to identify contaminants.
+```{r}
+# remove samples that say yes or NA in the BDNA column
+phyloseq_BDNA <-  subset_samples(phyloseq, !BDNA=="Yes")
+phyloseq_BDNA <-  subset_samples(phyloseq_BDNA, !BDNA=="NA")
+
+# format data for decontam
+phyloseq_BDNA@sam_data$BDNA <- as.numeric(phyloseq_BDNA@sam_data$BDNA)
+contamdf.freq <- isContaminant(phyloseq_BDNA, method="frequency", conc="BDNA")
+head(contamdf.freq) # The default value of threshold = 0.1 is used, and $contaminant=TRUE if $p < 0.1
+
+# number of contaminants
+table(contamdf.freq$contaminant)
+
+# how abundant are the contaminant ASVs?
+head(which(contamdf.freq$contaminant))
+
+# plot contaminant ASV vs noncontaminant and save as svg
+svg("freq_plot.svg")
+plot_frequency(phyloseq_BDNA, taxa_names(phyloseq_BDNA)[c(2,865)], conc="BDNA") + 
+  xlab("DNA Concentration")
+dev.off() 
+
+# png version
+png("freq_plot.png")
+plot_frequency(phyloseq_BDNA, taxa_names(phyloseq_BDNA)[c(2,865)], conc="BDNA") + 
+  xlab("DNA Concentration")
+dev.off() 
+```
+
+## remove frequency contaminant taxa from phyloseq object
+```{r}
+phyloseq.noncontam <- prune_taxa(!contamdf.freq$contaminant, phyloseq)
+```
+
+## identify contaminants with the prevalence method
+### This method compares the prevalence of a sequence feature in true positive samples to its prevalence in negative controls
+```{r}
+## add sample_or_control column
+sample_data(phyloseq.noncontam)$Sample_or_Control <- ifelse(is.na(phyloseq.noncontam@sam_data$Lifestyle), "control", "sample")
+sample_data(phyloseq.noncontam)$is.neg <- sample_data(phyloseq.noncontam)$Sample_or_Control == "control"
+contamdf.prev <- isContaminant(phyloseq.noncontam, method="prevalence", neg="is.neg")
+
+# how many contaminants?
+table(contamdf.prev$contaminant)
+
+# how abundant are the contaminant ASVs?
+which(contamdf.prev$contaminant)
+
+# how many times were taxa observed in neg controls vs pos samples?
+phyloseq.pa <- transform_sample_counts(phyloseq.noncontam, function(abund) 1*(abund>0))
+phyloseq.pa.neg <- prune_samples(sample_data(phyloseq.pa)$Sample_or_Control == "control", phyloseq.pa)
+phyloseq.pa.pos <- prune_samples(sample_data(phyloseq.pa)$Sample_or_Control == "sample", phyloseq.pa)
+
+# Make data.frame of prevalence in positive and negative samples
+df.pa <- data.frame(pa.pos=taxa_sums(phyloseq.pa.pos), pa.neg=taxa_sums(phyloseq.pa.neg),
+                      contaminant=contamdf.prev$contaminant)
+
+# plot
+ggplot(data=df.pa, aes(x=pa.neg, y=pa.pos, color=contaminant)) + geom_point() +
+  xlab("Prevalence (Negative Controls)") + ylab("Prevalence (True Samples)")
+```
+
+## remove contaminant taxa
+```{r}
+phyloseq.noncontam_all <- prune_taxa(!contamdf.prev$contaminant, phyloseq.noncontam)
+
+## save phyloseq object with contaminants removed
+# saveRDS(phyloseq.noncontam_all, "output/ps_noncontam.rds")
+```
+
+## examine which taxa are getting removed
+```{r}
+# frequency method
+tax <- as.data.frame(as.matrix(phyloseq@tax_table))
+contaminant_taxa_freq <- filter(contamdf.freq, contaminant == TRUE) # filter to just contaminants
+contam_tax_freq <- merge(contaminant_taxa_freq, tax, by = "row.names")
+
+# prevalence method
+contaminant_taxa_prev <- filter(contamdf.prev, contaminant == TRUE) # filter to just contaminants
+contam_tax_prev <- merge(contaminant_taxa_prev, tax, by = "row.names")
+```
+
+## and in which samples the taxa are found
+```{r}
+# combine all contaminant taxa IDs into one df
+contam_tax_freq$decon <- rep(c("freq"), 6)
+contam_tax_prev$decon <- rep(c("prev"), 13)
+contam_tax_comb <- rbind(contam_tax_freq, contam_tax_prev)
+contam_tax_comb <- as.data.frame(as.matrix(contam_tax_comb))
+
+# subset OTU table based on contaminant taxa 
+otu <- as.data.frame(as.matrix(otu_table(phyloseq)))
+otu_transpose <- transpose(otu)
+colnames(otu_transpose) <- rownames(otu)
+Row.names <- colnames(otu)
+otu_transpose <- cbind(Row.names, otu_transpose)
+contam_tax_samp <- subset(otu_transpose, Row.names %in% contam_tax_comb$Row.names)
+
+# separate OTU table by extraction kit
+qiagen_contam_tax <- select(contam_tax_samp, contains("genotek"))
+psoil_contam_tax <- select(contam_tax_samp, contains("psoil"))
+
+# remove samples with no contaminating taxa
+qiagen_contam_tax <- qiagen_contam_tax[, colSums(qiagen_contam_tax!= 0) > 0]
+psoil_contam_tax <- psoil_contam_tax[, colSums(psoil_contam_tax!= 0) > 0]
+
+dim(qiagen_contam_tax)
+dim(psoil_contam_tax)
+
+# remove samples with less than 10 counts of contaminating taxa
+qiagen_contam_tax_10 <- qiagen_contam_tax[, colSums(qiagen_contam_tax) > 10]
+dim(qiagen_contam_tax_10)
+
+psoil_contam_tax_10 <- psoil_contam_tax[, colSums(psoil_contam_tax) > 10]
+dim(psoil_contam_tax_10)
+
+# make taxID as row name
+qiagen_contam_tax_10$Row.names <- contam_tax_samp$Row.names
+psoil_contam_tax_10$Row.names <- contam_tax_samp$Row.names
+
+# merge with taxonomic classification
+qiagen_taxID <- merge(contam_tax_comb, qiagen_contam_tax_10, by = "Row.names")
+psoil_taxID <- merge(contam_tax_comb, psoil_contam_tax_10, by = "Row.names")
+```

@@ -1,0 +1,49 @@
+---
+title: "gut_rarefaction_phyloseq"
+author: "Erica Ryu"
+date: "9/11/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 7. Gut microbiome Rarefaction
+
+## The purpose of this script is to rarefy the gut microbiome samples in preparation for differential abundance analysis
+
+## load packages
+```{r cars}
+library(phyloseq)
+library(microbiome)
+```
+
+## load in data
+```{r}
+# gut microbiome
+gut <- readRDS("data/pbio.2005396.s025.rds")
+## phyloseq object acquired from the original Nepal gut microbiome paper Jha et al., 2018
+```
+
+## check read depth
+```{r}
+readcount(gut)
+```
+
+## remove sample below cutoff
+```{r}
+# cutoff = 5901
+gut_subset <- subset_samples(gut, !SampleID=="RAJ0016YZ")
+
+# check that it's gone
+readcount(gut_subset)
+```
+
+# rarefied phyloseq object
+```{r}
+raref_gut <- rarefy_even_depth(gut_subset, sample.size = 5901, replace = TRUE, rngseed = 123)
+
+## save object
+# saveRDS(raref_gut, "output/gut_rarefied_phyloseq.rds")
+```
