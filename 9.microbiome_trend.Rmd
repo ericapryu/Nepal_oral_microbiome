@@ -22,7 +22,7 @@ library(DescTools)
 library(data.table)
 library(magrittr)
 library(tidyr)
-# library(qvalue)
+library(purrr)
 ```
 
 ## load data
@@ -31,6 +31,11 @@ phyloseq_complete <- readRDS("output/ps_complete.rds")
 
 # subset based on extraction kit
 qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
+```
+
+## set colors
+```{r}
+fivecolors <- c("darkslateblue", "deepskyblue", "lightblue3", "lightsalmon" , "firebrick")
 ```
 
 ## prep taxa table

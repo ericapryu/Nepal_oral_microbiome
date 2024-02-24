@@ -14,4 +14,9 @@ This repository contains all scripts used to analyze the Nepali oral microbiome.
 8. differential_abundance - perform differential abundance analysis with ALDEx2 to identify taxa that differ based on lifestyle
 9. microbiome_trend - perform trend test on all genera to see which microbial abundances follow the lifestyle trend
 10. CCA - conduct CCA to identify which specific lifestyle factors played the greatest role in the microbiome
-11. Taxa_lifestyle - 
+11. Taxa_lifestyle - identify significant associations between specific lifestyle factors and DA microbes identified from the trend test.
+12. PICRUSt2_prep - prepping data for PICRUSt2
+13. PICRUSt2_stratified (shell) - run stratified version of PICRUST2 to predict pathway abundances.
+14. PICRUSt2_analysis - analyze PICRUSt2 output. All PICRUSt2 output from script 13 is assumed to be stored in the output directory in its own directory "PICRUSt2_result"
+15. network_analysis - conduct network analysis of the microbiome using SPARCC
+16. gut_oral_comparison - examine the relationship between the oral and gut microbiomes

@@ -9,35 +9,39 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# load packages
+# 11. Taxa vs lifestyle
+
+## The purpose is to identify associations between specific lifestyle factors and the DA taxa identified from the trend test. 
+
+## load packages
 ```{r}
 library(phyloseq)
 library(data.table)
 library(magrittr)
 library(tidyr)
 library(dplyr)
-library(purrr)
-library(qvalue)
 library(ggplot2)
+library(purrr)
+
 library(heatmaply)
 ```
 
-# load data
+## load data
 ```{r}
-phyloseq_complete <- readRDS("/Users/ericaryu/Documents/school_stuff/grad_school/PSU/lab/Nepal/Himalayan_oral_microbiome/coding/ps_complete.rds")
+phyloseq_complete <- readRDS("output/ps_complete.rds")
 
 # subset based on extraction kit
 qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
 ```
 
-# colors
+## colors
 ```{r}
-twocolors <- c("#009194", "white")
-threecolors <- c("lightblue3", "lightsalmon" , "firebrick")
-fourcolors <- c("#009194", "#67d9db", "#a9ddde", "white")
+twocolors <- c("deepskyblue", "lightsalmon" )
+fourcolors <- c("darkslateblue", "deepskyblue", "lightblue3", "lightsalmon")
+heatmap_col <- c("#009194", "white")
 ```
 
-# prep site by species table
+## prep taxa table
 ```{r}
 phy_genus <-  tax_glom(qiagen, "Genus", NArm = FALSE);phy_genus
 phy_genus_RA <- transform_sample_counts(phy_genus, function(otu) otu/sum(otu))
@@ -71,7 +75,7 @@ rownames(otu_tax) <- otu_tax$Genus
 # and remove taxonomic columns
 otu_tax <- subset(otu_tax, select = -c(Row.names, Kingdom, Phylum, Class, Order, Family, Genus))
 
-# remove europeans
+# remove europeans because no survey data for Europeans
 otu_tax_wo_euro <- dplyr::select(otu_tax, -contains("EUR"))
 
 # change to dataframe
@@ -82,37 +86,30 @@ rownames(otu_tax) <- rownames(otu_tax_wo_euro)
 
 ```
 
-# subset to taxa of interest
+## subset to DA taxa
 ```{r}
 # subset to taxa of interest
 taxa <- c("Streptobacillus", "Porphyromonadaceae_unclassified", "Granulicatella", "Moraxella", "Simonsiella", "Neisseria", "Bacteroidetes_unclassified", "Brachymonas", "Atopobium")
 
 # extracting data frame rows
 selected_otu_tax <- otu_tax[rownames(otu_tax) %in% taxa, ] 
-
-# remove NA sample
-selected_otu_tax <- dplyr::select(as.data.frame(selected_otu_tax), -c("NEW1103_genotek"))
 ```
 
-# set up metadata 
+## set up metadata 
 ```{r}
 meta <- as.data.frame(qiagen@sam_data)
 df_meta <- as.data.frame(as.matrix(meta))
 df_meta_num <- dplyr::select(df_meta, "SEX2":"RHR")
 
 dim(df_meta_num)
-# 69 58
 
-### remove NAs
+## remove factors and samples with lots of NAs
 # filter out Americans
 df_meta_num$Lifestyle <- df_meta$Lifestyle
 wo_euro <- subset(df_meta_num, Lifestyle != "Industrial")
 
-# remove NA sample
-wo_NA <- subset(wo_euro, rownames(wo_euro) != "NEW1103_genotek")
-
 # remove columns specific to women (pregnancy, menstruation, etc)
-wo_mens <- dplyr::select(wo_NA, -c("MENS2":"MISC2"))
+wo_mens <- dplyr::select(wo_euro, -c("MENS2":"MISC2"))
 
 # remove columns for bitter taste perception
 wo_bitter <- dplyr::select(wo_mens, -c("BTP_CTRL2":"BTP_SBZ2"))
@@ -123,7 +120,7 @@ wo_vital <- dplyr::select(wo_bitter, -c("HGT2":"RHR"))
 # remove geographical info
 wo_geo <- dplyr::select(wo_vital, -c("LAT2":"ALT2"))
 
-### change NAs
+## change sporadic NAs
 # change NAs in EXER_FREQ2
 wo_geo$EXER_FREQ2[is.na(wo_geo$EXER_FREQ2)] <- 0
 
@@ -144,13 +141,11 @@ household$HS2[is.na(household$HS2)] <- 2
 # final df for CA
 df_meta_wo_lifestyle <- dplyr::select(household, -c("Lifestyle"))
 df_meta_final <- as.data.frame(sapply(df_meta_wo_lifestyle, as.factor))
-# df_CA_final <- mutate_if(df_CA_numeric, is.numeric, as.factor) # not making into a factor
 
 dim(df_meta_final)
-# 62 37
 ```
 
-# generate models
+## generate linear models
 ```{r}
 # set up df for entry
 lifestylevtaxa <- data.frame(matrix(ncol = 10, nrow = 37))
@@ -170,7 +165,6 @@ for(i in colnames(df_meta_final)){
 
 lifestylevtaxa$streptobacillus <- strepto_vector
 
-
 # porphyromonadaceae
 porph <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Porphyromonadaceae_unclassified", ]))
 
@@ -183,7 +177,6 @@ for(i in colnames(df_meta_wo_lifestyle)){
 }
 
 lifestylevtaxa$porphyromonadaceae <- porph_vector
-
 
 # granulicatella
 granul <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Granulicatella", ]))
@@ -198,7 +191,6 @@ for(i in colnames(df_meta_wo_lifestyle)){
 
 lifestylevtaxa$granulicatella <- granul_vector
 
-
 # moraxella
 morax <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Moraxella", ]))
 
@@ -211,7 +203,6 @@ for(i in colnames(df_meta_wo_lifestyle)){
 }
 
 lifestylevtaxa$moraxella <- morax_vector
-
 
 # simonsiella
 simon <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Simonsiella", ]))
@@ -226,7 +217,6 @@ for(i in colnames(df_meta_wo_lifestyle)){
 
 lifestylevtaxa$simonsiella <- simon_vector
 
-
 # neisseria
 neiss <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Neisseria", ]))
 
@@ -239,7 +229,6 @@ for(i in colnames(df_meta_wo_lifestyle)){
 }
 
 lifestylevtaxa$neisseria <- neiss_vector
-
 
 # bacteroidetes_unclassified
 bacter <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Bacteroidetes_unclassified", ]))
@@ -254,7 +243,6 @@ for(i in colnames(df_meta_wo_lifestyle)){
 
 lifestylevtaxa$bacteroidetes_unclassified <- bacter_vector
 
-
 # brachymonas
 brachy <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Brachymonas", ]))
 
@@ -267,7 +255,6 @@ for(i in colnames(df_meta_wo_lifestyle)){
 }
 
 lifestylevtaxa$brachymonas <- brachy_vector
-
 
 # atopobium
 atopo <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Atopobium", ]))
@@ -283,9 +270,10 @@ for(i in colnames(df_meta_wo_lifestyle)){
 lifestylevtaxa$atopobium <- atopo_vector
 ```
 
-# multiple test adjustment
+## multiple test adjustment
 ```{r}
 lifestylevtaxaBH <- lifestylevtaxa
+
 # strepto
 lifestylevtaxaBH$strepto_BHadj_p_value <- p.adjust(lifestylevtaxaBH$streptobacillus, method = "BH", n = length(lifestylevtaxaBH$streptobacillus))
 
@@ -313,10 +301,10 @@ lifestylevtaxaBH$brachy_BHadj_p_value <- p.adjust(lifestylevtaxaBH$brachymonas, 
 # atopo
 lifestylevtaxaBH$atopo_BHadj_p_value <- p.adjust(lifestylevtaxaBH$atopobium, method = "BH", n = length(lifestylevtaxaBH$atopobium))
 
-# write.csv(lifestylevtaxaBH, file = "/Users/ericaryu/Documents/school_stuff/grad_school/PSU/lab/Nepal/Himalayan_oral_microbiome/coding/lifestylevtaxa.csv")
+# write.csv(lifestylevtaxaBH, file = "output/lifestylevtaxa.csv")
 ```
 
-# individual microbes vs lifestyle factors
+## individual microbes vs lifestyle factors
 ```{r}
 # log transform
 mk_logit <- function(otu_tax) {
@@ -327,51 +315,13 @@ rownames(log_otu_tax) <- rownames(otu_tax)
 relabund_otu_tax <- t(log_otu_tax)
 relabund_otu_tax <- as.data.frame(relabund_otu_tax)
 
-# remove samples with NAs
-relabund_otu_tax_prune <- relabund_otu_tax[!grepl("NEW1103_genotek", row.names(relabund_otu_tax)),]
+# grain - add lifestyle info and plot (only significant factor after BH)
+relabund_otu_tax$grain <- as.character(df_meta_final$GRA2)
+relabund_otu_tax$grain <- ifelse(grepl("0",relabund_otu_tax$grain), "Barley/Maize", "Rice/Wheat")
+relabund_otu_tax$grain <- factor(relabund_otu_tax$grain, levels=c("Barley/Maize", "Rice/Wheat"))
 
-# add factors
-## grain
-relabund_otu_tax_prune$grain <- as.character(df_meta_final$GRA2)
-relabund_otu_tax_prune$grain <- ifelse(grepl("0",relabund_otu_tax_prune$grain), "Barley/Maize", "Rice/Wheat")
-relabund_otu_tax_prune$grain <- factor(relabund_otu_tax_prune$grain, levels=c("Barley/Maize", "Rice/Wheat"))
-
-## smoking
-relabund_otu_tax_prune$smoking <- as.character(df_meta_final$SMOK2)
-relabund_otu_tax_prune$smoking <- ifelse(grepl("0",relabund_otu_tax_prune$smoking), "No", "Yes")
-relabund_otu_tax_prune$smoking <- factor(relabund_otu_tax_prune$smoking, levels=c("Yes", "No"))
-
-## sisnu
-relabund_otu_tax_prune$Sisnu <- as.character(df_meta_final$Sisnu2)
-relabund_otu_tax_prune$Sisnu <- ifelse(grepl("0",relabund_otu_tax_prune$Sisnu), "No", "Yes")
-relabund_otu_tax_prune$Sisnu <- factor(relabund_otu_tax_prune$Sisnu, levels=c("Yes", "No"))
-
-## alcohol
-relabund_otu_tax_prune$alcohol <- as.character(df_meta_final$ALCO2)
-relabund_otu_tax_prune$alcohol <- ifelse(grepl("0",relabund_otu_tax_prune$alcohol), "No", "Yes")
-relabund_otu_tax_prune$alcohol <- factor(relabund_otu_tax_prune$alcohol, levels=c("Yes", "No"))
-
-## health_time
-relabund_otu_tax_prune$health_time <- as.character(df_meta_final$HLTH_TIM2)
-relabund_otu_tax_prune$health_time <- ifelse(grepl("0",relabund_otu_tax_prune$health_time), "No", "Yes")
-relabund_otu_tax_prune$health_time <- factor(relabund_otu_tax_prune$health_time, levels=c("Yes", "No"))
-
-## scarcity
-relabund_otu_tax_prune$scarcity <- as.character(df_meta_final$SCAR2)
-relabund_otu_tax_prune$scarcity <- ifelse(grepl("0",relabund_otu_tax_prune$scarcity), "No", "Yes")
-relabund_otu_tax_prune$scarcity <- factor(relabund_otu_tax_prune$scarcity, levels=c("Yes", "No"))
-
-## medicine
-relabund_otu_tax_prune$meds <- as.character(df_meta_final$MED2)
-relabund_otu_tax_prune$meds <- ifelse(grepl("3",relabund_otu_tax_prune$meds), "Using now",
-                                      ifelse(grepl("2",relabund_otu_tax_prune$meds), "Within 6mo",
-                                             ifelse(grepl("0",relabund_otu_tax_prune$meds), "Never", "More than 6mo")))
-relabund_otu_tax_prune$meds <- factor(relabund_otu_tax_prune$meds, levels=c("Using now", "Within 6mo", "More than 6mo", "Never"))
-
-
-# plot main factors
-## grain
-plot_brachy_grain <- ggplot(relabund_otu_tax_prune, aes(x = grain, y = Brachymonas)) +
+# plot
+plot_brachy_grain <- ggplot(relabund_otu_tax, aes(x = grain, y = Brachymonas)) +
   geom_violin(aes(fill=grain), alpha=0.8) +
   geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
   scale_x_discrete(limits=c("Barley/Maize", "Rice/Wheat")) +
@@ -384,249 +334,10 @@ plot_brachy_grain <- ggplot(relabund_otu_tax_prune, aes(x = grain, y = Brachymon
   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-# ggsave(file="plot_brachy_grain.svg", plot=plot_brachy_grain, width=3, height=2)
-
-
-
-## smoking
-# subset
-smok_taxa <- relabund_otu_tax_prune[,c("Porphyromonadaceae_unclassified","Granulicatella", "Neisseria","Atopobium", "smoking")]
-
-# change format
-smok_taxa <- pivot_longer(smok_taxa, !smoking, names_to = "Taxa", values_to = "Rel_abund")
-
-# set level
-smok_taxa$smoking <- factor(smok_taxa$smoking, ordered = TRUE, levels=c("Yes", "No"))
-
-plot_smok <- ggplot(smok_taxa, aes(x = smoking, y = Rel_abund, group = smoking), color = black) +
-  geom_violin(aes(fill=smoking), alpha=0.8) +
-  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
-  scale_x_discrete(limits=c("Yes", "No")) +
-  scale_fill_manual(name=NULL,
-                    values=twocolors,
-                    breaks=c("Yes", "No"),
-                    labels=c("Yes", "No")) +
-  geom_jitter(size = 1, width=0.15, col="darkgreen") + facet_wrap(~Taxa, ncol = 2, scales = "fixed") +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
-  theme(legend.position = "none") + xlab("") + ylim(-0.005,0.055)
-
-# ggsave(file="plot_smok.svg", plot=plot_smok, width=4, height=5)
-
-# sisnu
-# subset
-sisnu_taxa <- relabund_otu_tax_prune[,c("Porphyromonadaceae_unclassified","Brachymonas", "Moraxella", "Sisnu")]
-
-# change format
-sisnu_taxa <- pivot_longer(sisnu_taxa, !Sisnu, names_to = "Taxa", values_to = "Rel_abund")
-
-# set level
-sisnu_taxa$Sisnu <- factor(sisnu_taxa$Sisnu, ordered = TRUE, levels=c("Yes", "No"))
-
-plot_sisnu <- ggplot(sisnu_taxa, aes(x = Sisnu, y = Rel_abund, group = Sisnu), color = black) +
-  geom_violin(aes(fill=Sisnu), alpha=0.8) +
-  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
-  scale_x_discrete(limits=c("Yes", "No")) +
-  scale_fill_manual(name=NULL,
-                    values=twocolors,
-                    breaks=c("Yes", "No"),
-                    labels=c("Yes", "No")) +
-  geom_jitter(size = 1, width=0.15, col="darkgreen") + facet_wrap(~Taxa, ncol = 2, scales = "fixed") +
-  theme(axis.title.x = element_blank(), axis.title.y = element_blank()) +
-  theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
-  theme(legend.position = "none") + xlab("") + ylim(-0.005,0.03)
-
-# ggsave(file="plot_sisnu.svg", plot=plot_sisnu, width=4, height=5)
-
-# plot_granul_smok <- ggplot(relabund_otu_tax_prune, aes(x = smoking, y = Granulicatella)) +
-#   geom_violin(aes(fill=smoking), alpha=0.8) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
-#   scale_x_discrete(limits=c("Yes", "No")) +
-#   scale_fill_manual(name=NULL,
-#                     values=twocolors,
-#                     breaks=c("Yes", "No"),
-#                     labels=c("Yes", "No")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Granulicatella against smoking", x = "Smoking", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# # ggsave(file="plot_granul_smok.svg", plot=plot_granul_smok, width=3, height=2)
-# 
-# plot_neiss_smok <- ggplot(relabund_otu_tax_prune, aes(x = smoking, y = Neisseria)) +
-#   geom_violin(aes(fill=smoking), alpha=0.8) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
-#   scale_x_discrete(limits=c("Yes", "No")) +
-#   scale_fill_manual(name=NULL,
-#                     values=twocolors,
-#                     breaks=c("Yes", "No"),
-#                     labels=c("Yes", "No")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Neisseria against smoking", x = "Smoking", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# # ggsave(file="plot_neiss_smok.svg", plot=plot_neiss_smok, width=3, height=2)
-# 
-# plot_atopo_smok <- ggplot(relabund_otu_tax_prune, aes(x = smoking, y = Atopobium)) +
-#   geom_violin(aes(fill=smoking), alpha=0.8) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
-#   scale_x_discrete(limits=c("Yes", "No")) +
-#   scale_fill_manual(name=NULL,
-#                     values=twocolors,
-#                     breaks=c("Yes", "No"),
-#                     labels=c("Yes", "No")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Atopobium against smoking", x = "Smoking", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# # ggsave(file="plot_atopo_smok.svg", plot=plot_atopo_smok, width=3, height=2)
-# 
-# ## sisnu
-# plot_porph_sisnu <- ggplot(relabund_otu_tax_prune, aes(x = Sisnu, y = Porphyromonadaceae_unclassified)) +
-#   geom_violin(aes(fill=Sisnu), alpha=0.8) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
-#   scale_x_discrete(limits=c("Yes", "No")) +
-#   scale_fill_manual(name=NULL,
-#                     values=twocolors,
-#                     breaks=c("Yes", "No"),
-#                     labels=c("Yes", "No")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Porphyromonadaceae against Sisnu", x = "Sisnu", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# # ggsave(file="plot_porph_sisnu.svg", plot=plot_porph_sisnu, width=3, height=2)
-# 
-# plot_morax_sisnu <- ggplot(relabund_otu_tax_prune, aes(x = Sisnu, y = Moraxella)) +
-#   geom_violin(aes(fill=Sisnu), alpha=0.8) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
-#   scale_x_discrete(limits=c("Yes", "No")) +
-#   scale_fill_manual(name=NULL,
-#                     values=twocolors,
-#                     breaks=c("Yes", "No"),
-#                     labels=c("Yes", "No")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Moraxella against Sisnu", x = "Sisnu", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# # ggsave(file="plot_morax_sisnu.svg", plot=plot_morax_sisnu, width=3, height=2)
-# 
-# plot_brachy_sisnu <- ggplot(relabund_otu_tax_prune, aes(x = Sisnu, y = Brachymonas)) +
-#   geom_violin(aes(fill=Sisnu), alpha=0.8) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
-#   scale_x_discrete(limits=c("Yes", "No")) +
-#   scale_fill_manual(name=NULL,
-#                     values=twocolors,
-#                     breaks=c("Yes", "No"),
-#                     labels=c("Yes", "No")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Brachymonas against Sisnu", x = "Sisnu", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# # ggsave(file="plot_brachy_sisnu.svg", plot=plot_brachy_sisnu, width=3, height=2)
-# 
-# ## alcohol
-# plot_bacter_alco <- ggplot(relabund_otu_tax_prune, aes(x = alcohol, y = Bacteroidetes_unclassified)) +
-#   geom_violin(aes(fill=alcohol), alpha=1) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2) +
-#   scale_x_discrete(limits=c("No", "Yes")) +
-#   scale_fill_manual(name=NULL,
-#                     values=twocolors,
-#                     breaks=c("Yes", "No"),
-#                     labels=c("Yes", "No")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Bacteroidetes against alcohol", x = "Alcohol Consumption", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# ggsave(file="plot_bacter_alco.svg", plot=plot_bacter_alco, width=8, height=6)
-# 
-# # interesting microbes
-# ## health_time
-# plot_strepto_healtim <- ggplot(relabund_otu_tax_prune, aes(x = health_time, y = Streptobacillus)) +
-#   geom_violin(aes(fill=health_time), alpha=1) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2) +
-#   scale_x_discrete(limits=c("Yes", "No")) +
-#   scale_fill_manual(name=NULL,
-#                     values=twocolors,
-#                     breaks=c("Yes", "No"),
-#                     labels=c("Yes", "No")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Streptobacillus against travel for healthcare ", x = "Long distance traveled for healthcare", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# ggsave(file="plot_strepto_healtim.svg", plot=plot_strepto_healtim, width=8, height=6)
-# 
-# plot_brachy_healtim <- ggplot(relabund_otu_tax_prune, aes(x = health_time, y = Brachymonas)) +
-#   geom_violin(aes(fill=health_time), alpha=1) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2) +
-#   scale_x_discrete(limits=c("Yes", "No")) +
-#   scale_fill_manual(name=NULL,
-#                     values=twocolors,
-#                     breaks=c("Yes", "No"),
-#                     labels=c("Yes", "No")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Brachymonas against travel for healthcare ", x = "Long distance traveled for healthcare", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# ggsave(file="plot_brachy_healtim.svg", plot=plot_brachy_healtim, width=8, height=6)
-# 
-# ## scarcity
-# plot_porph_scar <- ggplot(relabund_otu_tax_prune, aes(x = scarcity, y = Porphyromonadaceae_unclassified)) +
-#   geom_violin(aes(fill=scarcity), alpha=1) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2) +
-#   scale_x_discrete(limits=c("Yes", "No")) +
-#   scale_fill_manual(name=NULL,
-#                     values=twocolors,
-#                     breaks=c("Yes", "No"),
-#                     labels=c("Yes", "No")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Porphyromonadaceae against scarcity", x = "Food scarcity", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# ggsave(file="plot_porph_scar.svg", plot=plot_porph_scar, width=8, height=6)
-# 
-# plot_granul_scar <- ggplot(relabund_otu_tax_prune, aes(x = scarcity, y = Granulicatella)) +
-#   geom_violin(aes(fill=scarcity), alpha=1) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2) +
-#   scale_x_discrete(limits=c("Yes", "No")) +
-#   scale_fill_manual(name=NULL,
-#                     values=twocolors,
-#                     breaks=c("Yes", "No"),
-#                     labels=c("Yes", "No")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Granulicatella against scarcity", x = "Food scarcity", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# ggsave(file="plot_granul_scar.svg", plot=plot_granul_scar, width=8, height=6)
-# 
-# ## medicine
-# plot_atopo_meds <- ggplot(relabund_otu_tax_prune, aes(x = meds, y = Atopobium)) +
-#   geom_violin(aes(fill=meds), alpha=1) +
-#   geom_boxplot(width=0.1, color="black", alpha=0.2) +
-#   scale_x_discrete(limits=c("Using now", "Within 6mo", "More than 6mo", "Never")) +
-#   scale_fill_manual(name=NULL,
-#                     values=fourcolors,
-#                     breaks=c("Using now", "Within 6mo", "More than 6mo", "Never"),
-#                     labels=c("Using now", "Within 6mo", "More than 6mo", "Never")) +
-#   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-#   labs(title = "Atopobium against medicines", x = "Medicine use", y = "Relative Abundance")+
-#   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-#   theme(legend.position = "none")
-# 
-# ggsave(file="plot_atopo_meds.svg", plot=plot_atopo_meds, width=8, height=6)
-
+# ggsave(file="figures/plot_brachy_grain.svg", plot=plot_brachy_grain, width=3, height=2)
 ```
 
-# lifestyle v taxa heatmap
+## heatmap of lifestyle v taxa
 ```{r}
 lifestylevtaxa_hm <- lifestylevtaxa
 
@@ -637,9 +348,9 @@ lifestylevtaxa_hm <- subset(lifestylevtaxa_hm, select = -c(lifestyle))
 
 lifestylevtaxa_hm <- as.matrix(lifestylevtaxa_hm)
 
-hm_plot <- heatmaply(lifestylevtaxa_hm, 
-          colors = twocolors, file = "hm_plot.pdf", width = 700, height = 800, text_angle = 15)
+# plot and save
 
-ggsave(file="", plot=hm_plot, width=8, height=7)
+# hm_plot <- heatmaply(lifestylevtaxa_hm, 
+#           colors = heatmap_col, file = "figures/hm_plot.pdf", width = 700, height = 800, text_angle = 15)
 ```
 

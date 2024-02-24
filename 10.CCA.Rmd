@@ -22,12 +22,8 @@ library(FactoMineR)
 library(factoextra)
 library(vegan)
 library(dplyr)
-
-# library(caret)
-# library(ggvegan)
+library(ggplot2)
 library(tidyr)
-# library(ggplot2)
-# library(gridExtra)
 ```
 
 ## load data
@@ -85,7 +81,7 @@ df_CA <- as.data.frame(as.matrix(CA_meta))
 df_CA_num <- dplyr::select(df_CA, "SEX2":"RHR")
 dim(df_CA_num)
 
-## remove factors with lots of NAs
+## remove factors and samples with lots of NAs
 # filter out Americans due to no survey data
 df_CA_num$Lifestyle <- df_CA$Lifestyle
 wo_euro <- subset(df_CA_num, Lifestyle != "Industrial")
@@ -461,9 +457,9 @@ faiths_ca2 <- ggplot(faiths_CA_comb, aes(x = mean, y = CA2)) +
 cor.test(faiths_CA_comb$mean, faiths_CA_comb$CA2, alternative = "two.sided", method=c("spearman"))
 ```
 
-## prep OTU table and survey data for CCA
+## prep taxa table and survey data for CCA
 ```{r}
-### prep OTU table
+### prep taxa table
 # remove Americans from original phyloseq object
 phyloseq_wo_euro <- subset_samples(qiagen, Lifestyle != "Industrial")
 
@@ -473,7 +469,7 @@ phy_genus <-  tax_glom(phyloseq_wo_euro, "Genus", NArm = FALSE);phy_genus
 # convert to relative abundance
 phy_genus_RA <- transform_sample_counts(phy_genus, function(otu) otu/sum(otu))
 
-# extract OTU table
+# extract taxa table
 df_OTU_CCA <- as.data.frame(as.matrix(phy_genus_RA@otu_table))
 
 # log transform
@@ -496,7 +492,7 @@ CCA_tax_table$Genus <- ifelse(CCA_tax_table$Genus == "_unclassified", paste(CCA_
 # isolate to genera
 CCA_genera_table <- subset(CCA_tax_table, select = c(Genus))
 
-# add taxonomic info to OTU table
+# add taxonomic info to taxa table
 CCA_OTU_log_t <- t(log_df_OTU_CCA)
 CCA_otu_tax <- merge(CCA_OTU_log_t, CCA_genera_table, by = 0, all = TRUE)
 

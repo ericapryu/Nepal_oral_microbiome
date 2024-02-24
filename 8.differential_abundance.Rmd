@@ -76,7 +76,7 @@ rownames(otu_tax) <- otu_tax$Genus
 otu_tax <- subset(otu_tax, select = -c(Row.names, Kingdom, Phylum, Class, Order, Family, Genus))
 ```
 
-## aldex kw
+## ALDEx2 kw
 ```{r}
 # set up comparison groups
 conds <- ifelse(grepl("CHE",otu_table$SampleID), "Foragers", 

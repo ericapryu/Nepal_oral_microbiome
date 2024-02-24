@@ -1,0 +1,65 @@
+---
+title: "picrust_prep"
+author: "Erica Ryu"
+date: "8/16/2023"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 12. PICRUSt2 prep
+
+## The purpose of this script is to prep microbiome data for PICRUST2 analysis
+
+## load packages
+```{r}
+library(biomformat)
+library(phyloseq)
+```
+
+## load phyloseq object
+```{r}
+# rarefied oral microbiome
+rarefied_phyloseq <- readRDS("output/rarefied_phyloseq.rds")
+
+# subset to qiagen samples
+rarefied_qiagen <- subset_samples(rarefied_phyloseq, Condition == "Qiagen")
+```
+
+## extract and prep table
+```{r}
+seq_tab_qiagen <- rarefied_qiagen@otu_table
+
+# extract the sequences
+seqs_qiagen <- colnames(seq_tab_qiagen)
+
+# # change sequence names to something more managable. This code will rename all of the sequences with "seq 1, seq 2, seq3 ... seqN) 
+colnames(seq_tab_qiagen) <- paste0("seq", seq(ncol(seq_tab_qiagen)))
+
+# transpose to have correct orentation
+seq_tab_qiagen_t <- t(seq_tab_qiagen)
+
+# save sequences and readable names for mapping later
+seq_map <- cbind(colnames(seq_tab_qiagen), seqs_qiagen)
+
+# add colnames for legibility
+colnames(seq_map) <- c("label", "sequence")
+```
+
+## make biom table and write files
+```{r}
+# make biome file
+seq_tab_qiagen_biom <- make_biom(seq_tab_qiagen_t)
+
+# write biome file to local desktop
+# write_biom(seq_tab_qiagen_biom, biom_file = "output/picrust_seq_tab_qiagen.biom")
+
+# write sequences to local desktop
+# write.table(seqs_qiagen, file="output/picrust_seq_qiagen.txt", quote=FALSE)
+
+# write map to local desktop
+# write.csv(seq_map, file="output/picrust_seq_qiagen_map.csv", quote=FALSE)
+```
+

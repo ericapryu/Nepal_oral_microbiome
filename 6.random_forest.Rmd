@@ -39,7 +39,7 @@ df_CA <- as.data.frame(as.matrix(CA_meta))
 df_CA_num <- dplyr::select(df_CA, "SEX2":"RHR")
 dim(df_CA_num)
 
-## remove factors with lots of NAs
+## remove factors and samples with lots of NAs
 # filter out Americans
 df_CA_num$Lifestyle <- df_CA$Lifestyle
 wo_euro <- subset(df_CA_num, Lifestyle != "Industrial")
