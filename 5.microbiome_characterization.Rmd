@@ -20,6 +20,7 @@ library(ggplot2)
 library(ggsignif)
 library(FSA)
 library(vegan)
+library(dplyr)
 ```
 
 ## load data
@@ -107,6 +108,7 @@ fisher_psoil <- subset(psoil_rfxn, measure == "Fisher")
 qiagen_alpha <- ggplot(qiagen_rfxn, aes(x = Lifestyle, y = mean, group = Lifestyle), color = black) +
   geom_violin(aes(fill=Lifestyle), alpha=0.8) +
   geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
+  geom_signif(comparisons = list(c("Expats", "American Industrial"), c("Agriculturalists", "American Industrial"), c("American Industrial", "Foragers")), map_signif_level = TRUE, step_increase = 0.1) +
   scale_x_discrete(limits=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) + 
   scale_fill_manual(name=NULL,
                     values=fivecolors,
@@ -183,8 +185,6 @@ df_faiths_dunn <- df_faiths_dunn[order(df_faiths_dunn$P.adj),]
 # extract sig p values
 df_shannon_dunn_sig <- df_shannon_dunn[(df_shannon_dunn$P.adj < 0.05),]
 df_faiths_dunn_sig <- df_faiths_dunn[(df_faiths_dunn$P.adj < 0.05),]
-
-# write.csv(df_faiths_dunn, file = "faiths_dunn.csv")
 
 # add column for diversity metric
 df_faiths_dunn_sig$metric <- rep(c("faiths"), times = 3)

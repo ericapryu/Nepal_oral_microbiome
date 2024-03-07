@@ -28,7 +28,6 @@ phyloseq_complete <- readRDS("output/ps_complete.rds")
 
 # subset based on extraction kit
 qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
-psoil <- subset_samples(phyloseq_complete, Condition == "Psoil")
 ```
 
 ## set up metadata for analysis
@@ -137,6 +136,7 @@ cm_df$Predicted <- factor(cm_df$Predicted, levels=c("Foragers", "Recently Settle
 
 cm_meta <- ggplot(cm_df, aes(x = True, y = Predicted, fill = Count)) +
   geom_tile() +
+  geom_text(aes(label = round(Count, 2)))+
   scale_fill_gradient(low="white", high="#009194")+
   labs(x = "True Label",y = "Predicted Label", title = "Lifestyle Metadata Confusion Matrix")
 
@@ -201,6 +201,7 @@ cm_mic_df$Predicted <- factor(cm_mic_df$Predicted, levels=c("Foragers", "Recentl
 
 cm_mic <- ggplot(cm_mic_df, aes(x = True, y = Predicted, fill = Count)) +
   geom_tile() +
+  geom_text(aes(label = round(Count, 2)))+
   scale_fill_gradient(low="white", high="#009194", limits=c(0,1))+
   labs(x = "True Label",y = "Predicted Label", title = "Microbiome Confusion Matrix")
 

@@ -330,11 +330,11 @@ plot_brachy_grain <- ggplot(relabund_otu_tax, aes(x = grain, y = Brachymonas)) +
                     breaks=c("Barley/Maize", "Rice/Wheat"),
                     labels=c("Barley/Maize", "Rice/Wheat")) +
   geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
-  labs(title = "Brachymonas against Grain", x = "Grain", y = "Relative Abundance")+
+  labs(title = "Brachymonas against Grain", x = "Grain", y = "log10 Relative Abundance")+
   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-# ggsave(file="figures/plot_brachy_grain.svg", plot=plot_brachy_grain, width=3, height=2)
+# ggsave(file="figures/plot_brachy_grain.svg", plot=plot_brachy_grain, width=3, height=4)
 ```
 
 ## heatmap of lifestyle v taxa
