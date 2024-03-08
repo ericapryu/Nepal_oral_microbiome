@@ -26,7 +26,6 @@ library("picante")
 ## load data
 ```{r}
 phyloseq.noncontam_all <- readRDS("output/ps_noncontam.rds") # phyloseq object post decontam
-phyloseq <- readRDS("output/oralmicrobiome_ps.rds")
 ```
 
 ## set colors
@@ -80,7 +79,7 @@ psoil_reads <- subset(reads, Condition == "Psoil")
 
 plot_genotek_reads <- ggplot(genotek_reads, aes(x= reorder(SampleID, TotalReads), y=TotalReads, fill=Lifestyle)) +
   geom_bar(stat = "identity") +
-  geom_hline(yintercept = 26927, linetype="dashed") +
+  geom_hline(yintercept = 26923, linetype="dashed") +
   scale_fill_manual(name=NULL,
                     values=fivecolors,
                     breaks=c("Foragers", "RecentlySettled", "Agriculturalists", "Expats", "Industrial"),
@@ -96,7 +95,7 @@ plot_genotek_reads <- ggplot(genotek_reads, aes(x= reorder(SampleID, TotalReads)
 
 plot_psoil_reads <- ggplot(psoil_reads, aes(x= reorder(SampleID, TotalReads), y=TotalReads, fill=Lifestyle)) +
   geom_bar(stat = "identity") +
-  geom_hline(yintercept = 26927, linetype = "dashed") +
+  geom_hline(yintercept = 26923, linetype = "dashed") +
   scale_fill_manual(name=NULL,
                     values=fivecolors,
                     breaks=c("Foragers", "RecentlySettled", "Agriculturalists", "Expats", "Industrial"),
@@ -109,8 +108,7 @@ plot_psoil_reads <- ggplot(psoil_reads, aes(x= reorder(SampleID, TotalReads), y=
 
 # ggsave(file = "figures/psoil_reads.svg", width = 6, height = 3, plot = plot_psoil_reads)
 
-# throw out the samples that are below 26927 reads based on read depth
-which(genotek_reads == 17743, arr.ind=TRUE) # tells me which row that the sample is in
+# throw out the samples that are below 26923 reads based on read depth
 phyloseq_prunetaxa <- subset_samples(phyloseq_prunetaxa, !SampleID=="NEW0104_genotek")
 
 ## save object again
@@ -216,7 +214,7 @@ rarefy <- ggplot(
 # function for calculating alpha diversity
 set.seed(100)
  compute_alphadiv<-function(phyloseqobj,trials,rarefaction_depth){
-    min_lib= rarefaction_depth
+    min_lib = rarefaction_depth
     nsamp = nsamples(phyloseqobj)
     trials = trials
     tree = phy_tree(phyloseqobj)
@@ -303,19 +301,19 @@ set.seed(100)
  } 
  
 # calculate alpha diversity - include number of trials, number of sequences to subsample
-rfxn <- compute_alphadiv(phyloseq_prunetaxa,1000,26927)
+rfxn <- compute_alphadiv(phyloseq_prunetaxa,1000,26923)
 ```
 
-## generate rarefied phyloseq object subsetted to 26927 sequences
+## generate rarefied phyloseq object subsetted to 26923 sequences
 ```{r}
-raref_phyloseq_prunetaxa <- rarefy_even_depth(phyloseq_prunetaxa, sample.size = 26927, replace = TRUE, rngseed = 123)
+raref_phyloseq_prunetaxa <- rarefy_even_depth(phyloseq_prunetaxa, sample.size = 26923, replace = TRUE, rngseed = 123)
 ```
 
 ## check individuals currently taking antibiotics
 ```{r}
 rfxn_antibio <- rfxn 
 
-# subset to individuals currently on antibiotics
+# relabel individuals currently on antibiotics
 rfxn_antibio$ANTIBIO_curr <- ifelse(rfxn_antibio$ANTIBIO == "A", "Currently on Antibiotics", "Not Currently")
 
 # remove individuals with NA in antibiotic status
@@ -375,7 +373,7 @@ rfxn <- rfxn[!grepl("A", rfxn$ANTIBIO),]
 ```{r}
 # saveRDS(phyloseq_complete, "output/ps_complete.rds")
 # saveRDS(rarefied_phyloseq, "output/rarefied_phyloseq.rds")
-# write.csv(rfxn, file = "output/rarefaction_edit05152023.csv")
+# write.csv(rfxn, file = "output/rarefaction_edit03082024_final.csv")
 ```
 
 ## how many samples per lifestyle/population left after removing samples?
@@ -419,9 +417,9 @@ before <- c(rep("Before", 5))
 after <- c(rep("After", 5))
 lifestyle <- c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "Industrial")
 before_count_qiagen <- c(15, 21, 24, 8, 6)
-after_count_qiagen <- c(14, 21, 23, 7, 6)
+after_count_qiagen <- c(14, 21, 21, 7, 6)
 before_count_psoil <- c(14, 22, 23, 8, 4)
-after_count_psoil <- c(14, 22, 18, 8, 2)
+after_count_psoil <- c(14, 22, 17, 5, 2)
 
 before_df_qiagen <- data.frame(before, lifestyle, before_count_qiagen)
 colnames(before_df_qiagen) <- c("state", "lifestyle", "count")
@@ -464,29 +462,3 @@ psoil_sample_count <- ggplot(comb_psoil, aes(fill=state, x=lifestyle, y=count)) 
 # ggsave(file = "figures/psoil_sample_count.svg", width = 7, height = 4, plot = psoil_sample_count)
 
 ```
-
-## sample size per extraction kit
-```{r}
-df_psoil <- after_df_psoil
-df_psoil$state <- gsub("After", "Psoil", df_psoil$state)
-df_qiagen <- after_df_qiagen
-df_qiagen$state <- gsub("After", "Qiagen", df_qiagen$state)
-
-comb <- rbind(df_psoil, df_qiagen)
-
-comb$lifestyle <- gsub("Industrial", "American Industrial", comb$lifestyle)
-comb$lifestyle <- factor(comb$lifestyle, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"))
-
-sample_extraction_kit <- ggplot(comb, aes(fill=state, x=lifestyle, y=count)) + 
-  geom_bar(position="dodge", stat="identity") +
-    scale_fill_manual(name=NULL,
-                    values=twocolors,
-                    breaks=c("Psoil", "Qiagen"),
-                    labels=c("PowerSoil", "Qiagen")) +
-  geom_text(aes(label=count), position=position_dodge(width=0.9), vjust=-0.25) +
-  labs(title = "Sample Size per Extraction Kit for each Lifestyle", x = "Lifestyle", y = " Sample Size")+
-  theme_classic()
-
-# ggsave(file = "figures/sample_extraction_kit.svg", width = 7, height = 5, plot = sample_extraction_kit)
-```
-

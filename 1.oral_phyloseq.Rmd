@@ -50,7 +50,7 @@ for(i in seq_along(fileFwd)) {
 ```{r}
 exists <- file.exists(filtFwd)
 derepFs <- derepFastq(filtFwd[exists], verbose=TRUE)
-sam.names <- sapply(strsplit(basename(fileFwd), "_"), `[`, 1)
+sam.names <- sapply(strsplit(basename(fileFwd), ".fastq"), `[`, 1)
 names(derepFs) <- sam.names[exists]
 
 ddF <- dada(derepFs[1:40], err=NULL, selfConsist=TRUE)
@@ -146,7 +146,7 @@ head(track)
 track$retained_overall <- track$nochim / track$input
 
 # save read track table
-write.csv(track, file = "output/track_reads.csv")
+# write.csv(track, file = "output/track_reads.csv")
 ```
 
 ## assign taxonomy
@@ -198,6 +198,6 @@ ps <- phyloseq(tax_table(taxtab),
 ps
 
 # save phyloseq object
-saveRDS(ps, "output/oralmicrobiome_ps.rds")
+# saveRDS(ps, "output/oralmicrobiome_ps.rds")
 ```
 

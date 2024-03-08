@@ -26,7 +26,7 @@ library(dplyr)
 ## load data
 ```{r}
 phyloseq_complete <- readRDS("output/ps_complete.rds")
-rfxn_micro <- read.csv("output/rarefaction_edit05152023.csv", header = TRUE)
+rfxn_micro <- read.csv("output/rarefaction_edit03082024_final.csv", header = TRUE)
 
 # subset based on extraction kit
 qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
@@ -119,7 +119,7 @@ qiagen_alpha <- ggplot(qiagen_rfxn, aes(x = Lifestyle, y = mean, group = Lifesty
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) + 
   theme(legend.position = "none") + xlab("")
 
-# ggsave(file = "qiagen_alpha.svg", width = 6, height = 7, plot = qiagen_alpha)
+# ggsave(file = "figures/qiagen_alpha.svg", width = 6, height = 8, plot = qiagen_alpha)
 
 # subset to specific metrics for visualization
 qiagen_alpha_plot <- subset(qiagen_rfxn, measure == "Shannon" | measure == "Faiths")
@@ -138,7 +138,7 @@ qiagen_alpha_plot_obj <- ggplot(qiagen_alpha_plot, aes(x = Lifestyle, y = mean, 
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) + 
   theme(legend.position = "none") + xlab("")
 
-# ggsave(file = "qiagen_alpha_plot_obj.svg", width = 6, height = 4, plot = qiagen_alpha_plot_obj)
+# ggsave(file = "figures/qiagen_alpha_plot_obj.svg", width = 6, height = 4, plot = qiagen_alpha_plot_obj)
 
 psoil_alpha <- ggplot(psoil_rfxn, aes(x = Lifestyle, y = mean, group = Lifestyle), color = black) +
   geom_violin(aes(fill=Lifestyle), alpha=0.8) +
@@ -153,7 +153,7 @@ psoil_alpha <- ggplot(psoil_rfxn, aes(x = Lifestyle, y = mean, group = Lifestyle
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) + 
   theme(legend.position = "none") + xlab("")
 
-# ggsave(file = "psoil_alpha.svg", width = 6, height = 7, plot = psoil_alpha)
+# ggsave(file = "figures/psoil_alpha.svg", width = 6, height = 7, plot = psoil_alpha)
 
 ## calculate significance
 # KW - qiagen
@@ -173,24 +173,40 @@ kruskal.test(mean ~ Lifestyle, data = fisher_psoil)
 ## dunn's test
 shannon_dunn <- dunnTest(mean ~ Lifestyle, data = shannon_qiagen, method="bh")
 faiths_dunn <- dunnTest(mean ~ Lifestyle, data = faiths_qiagen, method="bh")
+rich_dunn <- dunnTest(mean ~ Lifestyle, data = rich_qiagen, method="bh")
+simpson_dunn <- dunnTest(mean ~ Lifestyle, data = simpson_qiagen, method="bh")
+fisher_dunn <- dunnTest(mean ~ Lifestyle, data = fisher_qiagen, method="bh")
 
 # extract as df
 df_shannon_dunn <- shannon_dunn[["res"]]
 df_faiths_dunn <- faiths_dunn[["res"]]
+df_rich_dunn <- rich_dunn[["res"]]
+df_simpson_dunn <- simpson_dunn[["res"]]
+df_fisher_dunn <- fisher_dunn[["res"]]
 
 # order by p value
 df_shannon_dunn <- df_shannon_dunn[order(df_shannon_dunn$P.adj),]
 df_faiths_dunn <- df_faiths_dunn[order(df_faiths_dunn$P.adj),]
+df_rich_dunn <- df_rich_dunn[order(df_rich_dunn$P.adj),]
+df_simpson_dunn <- df_simpson_dunn[order(df_simpson_dunn$P.adj),]
+df_fisher_dunn <- df_fisher_dunn[order(df_fisher_dunn$P.adj),]
 
 # extract sig p values
 df_shannon_dunn_sig <- df_shannon_dunn[(df_shannon_dunn$P.adj < 0.05),]
 df_faiths_dunn_sig <- df_faiths_dunn[(df_faiths_dunn$P.adj < 0.05),]
+df_rich_dunn_sig <- df_rich_dunn[(df_rich_dunn$P.adj < 0.05),]
+df_simpson_dunn_sig <- df_simpson_dunn[(df_simpson_dunn$P.adj < 0.05),]
+df_fisher_dunn_sig <- df_fisher_dunn[(df_fisher_dunn$P.adj < 0.05),]
 
 # add column for diversity metric
-df_faiths_dunn_sig$metric <- rep(c("faiths"), times = 3)
+df_shannon_dunn_sig$metric <- rep(c("shannon"), times = length(df_shannon_dunn_sig$P.adj))
+df_faiths_dunn_sig$metric <- rep(c("faiths"), times = length(df_faiths_dunn_sig$P.adj))
+df_rich_dunn_sig$metric <- rep(c("rich"), times = length(df_rich_dunn_sig$P.adj))
+df_simpson_dunn_sig$metric <- rep(c("simpson"), times = length(df_simpson_dunn_sig$P.adj))
+df_fisher_dunn_sig$metric <- rep(c("fisher"), times = length(df_fisher_dunn_sig$P.adj))
 
 # combine all sig
-df_dunn_sig <- rbind(df_shannon_dunn_sig, df_faiths_dunn_sig)
+df_dunn_sig <- rbind(df_shannon_dunn_sig, df_faiths_dunn_sig, df_rich_dunn_sig, df_simpson_dunn_sig, df_fisher_dunn_sig)
 
 
 ## alpha diversity for ONLY nepali individuals
@@ -220,8 +236,6 @@ qiagen_alpha_plot_nepal <- ggplot(shannon_qiagen_nepal, aes(x = Lifestyle, y = m
 bray_ordinate <- beta_ordinate(qiagen)
 bray_plot <- plot_beta(bray_ordinate, qiagen)
 
-# write.csv(bray_plot, "~/Documents/bray_axes.csv", row.names = TRUE)
-
 bray <- ggplot(bray_plot, aes(x = as.numeric(Axis.1), y = as.numeric(Axis.2))) +
   geom_point(shape = 21, color = "black", size = 3, aes(fill = lifestyle)) +
   scale_x_continuous(breaks=seq(-1,1,0.1)) +
@@ -233,7 +247,7 @@ bray <- ggplot(bray_plot, aes(x = as.numeric(Axis.1), y = as.numeric(Axis.2))) +
   labs(x = "PCoA1 (28.63%)",
        y = "PCoA2 (14.99%)")
 
-# ggsave(file = "bray_small.svg", plot = bray, width = 6, height = 3)
+# ggsave(file = "figures/bray_small.svg", plot = bray, width = 6, height = 3)
 
 # permanova
 bray_perm <- permanova(qiagen)
@@ -274,8 +288,8 @@ bray_pcoa2 <- ggplot(bray_plot, aes(x = lifestyle, y = as.numeric(Axis.2), group
 
 # trend test for axis 2
 JonckheereTerpstraTest(as.numeric(Axis.2) ~ lifestyle, data = bray_plot)
-# ggsave(file = "bray_pcoa1_small.svg", plot = bray_pcoa1, width = 6, height = 3)
-# ggsave(file = "bray_pcoa2_small.svg", plot = bray_pcoa2, width = 6, height = 3)
+# ggsave(file = "figures/bray_pcoa1_small.svg", plot = bray_pcoa1, width = 6, height = 3)
+# ggsave(file = "figures/bray_pcoa2_small.svg", plot = bray_pcoa2, width = 6, height = 3)
 
 ## all powersoil metrics
 bray_ordinate_psoil <- beta_ordinate(psoil)
@@ -293,7 +307,7 @@ bray_psoil <- ggplot(bray_plot_psoil, aes(x = as.numeric(Axis.1), y = as.numeric
   labs(x = "PCoA1 (26.4%)",
        y = "PCoA2 (12.76%)")
 
-# ggsave(file = "bray_psoil_small.svg", plot = bray_psoil, width = 6, height = 3)
+# ggsave(file = "figures/bray_psoil_small.svg", plot = bray_psoil, width = 6, height = 3)
 
 bray_perm_psoil <- permanova(psoil)
 
@@ -310,7 +324,7 @@ bray_pcoa1_psoil <- ggplot(bray_plot_psoil, aes(x = lifestyle, y = as.numeric(Ax
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-# ggsave(file = "bray_pcoa1_psoil_small.svg", plot = bray_pcoa1_psoil, width = 4, height = 3)
+# ggsave(file = "figures/bray_pcoa1_psoil_small.svg", plot = bray_pcoa1_psoil, width = 4, height = 3)
 
 # trend test for axis 1
 JonckheereTerpstraTest(as.numeric(Axis.1) ~ lifestyle, data = bray_plot_psoil)
@@ -328,7 +342,7 @@ bray_pcoa2_psoil <- ggplot(bray_plot_psoil, aes(x = lifestyle, y = as.numeric(Ax
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-# ggsave(file = "bray_pcoa2_psoil_small.svg", plot = bray_pcoa2_psoil, width = 4, height = 3)
+# ggsave(file = "figures/bray_pcoa2_psoil_small.svg", plot = bray_pcoa2_psoil, width = 4, height = 3)
 
 # trend test for axis 2
 JonckheereTerpstraTest(as.numeric(Axis.2) ~ lifestyle, data = bray_plot_psoil)
