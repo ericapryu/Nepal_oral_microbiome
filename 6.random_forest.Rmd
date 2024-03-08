@@ -161,21 +161,16 @@ df_RF_mic$lifestyle  <- ifelse(grepl("CHE",row.names(df_RF_mic)), "Foragers",
 # check for balance
 table(df_RF_mic$lifestyle)
 
-set.seed(101)
+set.seed(100)
 rf_mic <- randomForest(as.factor(lifestyle)~., data=df_RF_mic, proximity=TRUE) 
 print(rf_mic)
 
 # check for optimal ntree
 plot(rf_mic)
-## error rate doesn't stabilize as is, so i will increase trees to 1000
          
-set.seed(102)
-rf_mic_adj <- randomForest(as.factor(lifestyle)~., data=df_RF_mic, ntree=1000, proximity=TRUE) 
-print(rf_mic_adj)
-
 ## plot confusion matrix
 # extract the confusion matrix
-cm_mic <- as.data.frame(rf_mic_adj$confusion)
+cm_mic <- as.data.frame(rf_mic$confusion)
 
 # remove class error
 cm_mic <- cm_mic[, !(colnames(cm_mic) %in% c("class.error"))]
