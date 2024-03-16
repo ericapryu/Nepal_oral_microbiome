@@ -26,10 +26,10 @@ library(ALDEx2)
 ## load phyloseq object
 ```{r}
 # rarefied oral microbiome
-rarefied_phyloseq <- readRDS("output/rarefied_phyloseq.rds")
+phyloseq_complete <- readRDS("output/ps_complete.rds")
 
 # subset based on extraction kit
-rarefied_qiagen <- subset_samples(rarefied_phyloseq, Condition == "Qiagen")
+qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
 
 # rarefied gut microbiome
 rarefied_gut <- readRDS("output/gut_rarefied_phyloseq.rds")
@@ -42,7 +42,7 @@ fivecolors <- c("darkslateblue", "deepskyblue", "lightblue3", "lightsalmon" , "f
 
 ## prep taxa table for ALDEx2
 ```{r}
-phy_genus <-  tax_glom(rarefied_qiagen, "Genus", NArm = FALSE);phy_genus
+phy_genus <-  tax_glom(qiagen, "Genus", NArm = FALSE);phy_genus
 otu_table <- as.data.frame(as.matrix(phy_genus@otu_table))
 
 setDT(otu_table, keep.rownames = TRUE)[]
@@ -76,6 +76,12 @@ rownames(otu_tax) <- otu_tax$Genus
 otu_tax <- subset(otu_tax, select = -c(Row.names, Kingdom, Phylum, Class, Order, Family, Genus))
 ```
 
+## prep for ALDEx2
+```{r}
+otu_tax_1000 <- otu_tax*1000
+otu_tax_rnd <- round(otu_tax_1000)
+```
+
 ## ALDEx2 kw
 ```{r}
 # set up comparison groups
@@ -88,11 +94,70 @@ conds <- ifelse(grepl("CHE",otu_table$SampleID), "Foragers",
 transform_kw <- aldex.clr(otu_tax, conds, mc.samples=1000, denom="all")
 
 # generate model
-set.seed(100)
+set.seed(123)
 model_kw <- aldex.kw(transform_kw)
 ```
 
-## prep taxa table for gut microbiome
+## testing different ways to handle relabund*psuedocount
+```{r}
+## 100
+otu_tax_100 <- otu_tax*100
+otu_tax_rnd100 <- round(otu_tax_100)
+
+transform_kw100 <- aldex.clr(otu_tax_rnd100, conds, mc.samples=1000, denom="all")
+
+# generate model
+set.seed(123)
+model_kw100 <- aldex.kw(transform_kw100)
+##### doesn't work
+
+
+## 1000
+otu_tax_1000 <- otu_tax*1000
+otu_tax_rnd1000 <- round(otu_tax_1000)
+
+transform_kw1000 <- aldex.clr(otu_tax_rnd1000, conds, mc.samples=1000, denom="all")
+
+# generate model
+set.seed(123)
+model_kw1000 <- aldex.kw(transform_kw1000)
+
+
+### 10000
+otu_tax_10000 <- otu_tax*10000
+otu_tax_rnd10000 <- round(otu_tax_10000)
+
+transform_kw10000 <- aldex.clr(otu_tax_rnd10000, conds, mc.samples=1000, denom="all")
+
+# generate model
+set.seed(123)
+model_kw10000 <- aldex.kw(transform_kw10000)
+
+
+### 100000
+otu_tax_100000 <- otu_tax*100000
+otu_tax_rnd100000 <- round(otu_tax_100000)
+
+transform_kw100000 <- aldex.clr(otu_tax_rnd100000, conds, mc.samples=1000, denom="all")
+
+# generate model
+set.seed(123)
+model_kw100000 <- aldex.kw(transform_kw100000)
+
+
+## 100000000000
+otu_tax_100000000000 <- otu_tax*100000000000
+otu_tax_rnd100000000000 <- round(otu_tax_100000000000)
+
+transform_kw100000000000 <- aldex.clr(otu_tax_rnd100000000000, conds, mc.samples=1000, denom="all")
+
+# generate model
+set.seed(123)
+model_kw100000000000 <- aldex.kw(transform_kw100000000000)
+```
+
+
+## prep gut microbiome taxa table
 ```{r}
 phy_genus_gut <-  tax_glom(rarefied_gut, "Genus", NArm = FALSE);phy_genus_gut
 otu_table_gut <- as.data.frame(as.matrix(phy_genus_gut@otu_table))

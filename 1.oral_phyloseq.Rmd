@@ -15,12 +15,12 @@ The purpose of this script is to process 16S sequences through dada2 and phylose
 
 ## load packages
 ```{r}
-library("ggplot2");packageVersion("ggplot2")
-library("dada2");packageVersion("dada2")
-library("phyloseq");packageVersion("phyloseq")
-library("dplyr");packageVersion("dplyr")
-library("DECIPHER");packageVersion("DECIPHER")
-library("phangorn"); packageVersion("phangorn")
+library(ggplot2)
+library(dada2)
+library(phyloseq)
+library(dplyr)
+library(DECIPHER)
+library(phangorn)
 ```
 
 ## set variables for loading data
@@ -41,9 +41,8 @@ for(i in ii) { print(plotQualityProfile(fileFwd[i]) + ggtitle("Fwd")) }
 if(!file_test("-d", filt_path)) dir.create(filt_path)
 filtFwd <- file.path(filt_path, basename(fileFwd))
 
-for(i in seq_along(fileFwd)) {
-  fastqFilter(c(fileFwd[[i]]),c(filtFwd[[i]]),trimLeft=10, truncLen=c(150),maxN=0, maxEE=2, truncQ=2,compress=TRUE)
-}
+out <- filterAndTrim(fileFwd, filtFwd, trimLeft = 10, truncLen=c(150),
+              maxN=0, maxEE=2, truncQ=2, compress=TRUE, multithread=TRUE)
 ```
 
 ## infer sequence variants
@@ -55,7 +54,7 @@ names(derepFs) <- sam.names[exists]
 
 ddF <- dada(derepFs[1:40], err=NULL, selfConsist=TRUE)
 
-pdf("ErrorRates_ddf.pdf", width=6, height=6)
+pdf("output/ErrorRates_ddf.pdf", width=6, height=6)
 plotErrors(ddF)
 dev.off()
 
@@ -82,71 +81,23 @@ sum(seqtab)/sum(seqtab.all)
 table(nchar(getSequences(seqtab)))
 ```
 
-##  track reads - bash prep
-These steps are conducted in bash.
-```{bash eval=FALSE, echo=T}
-### raw fastq files
-# change directory to where project is located
-cd Nepal_oral_microbiome
-
-# add read counts to the file saved in the output directory
-for filename in data/fwd/*.fastq
-do
-echo $(cat $filename|wc -l)/4|bc >> output/raw_read_counts_per_step
-done
-
-# get list of columns
-echo data/fwd/*.fastq > output/raw_filename
-```
-
-## track reads - R prep
-These steps are conducted in R.
+## track reads
 ```{r}
-# import data
-raw_name <- read.table("output/raw_filename")
-raw_reads <- read.table("output/raw_read_counts_per_step")
+# filter out the samples that did not pass filtering
+samples_remove <- c("RAJ0019YZ_genotek.fastq", "THA0065JZ_genotek.fastq")
+out_subsetted <- out[!(rownames(out) %in% samples_remove), ]
+samples_remove_names <- c("RAJ0019YZ_genotek", "THA0065JZ_genotek")
+sam.names_subsetted <- sam.names[!(sam.names %in% samples_remove_names)]
 
-# transpose names
-raw_name_col <- t(raw_name)
-
-# clean up names
-raw_name_col <- gsub("data/fwd/", "", raw_name_col)
-raw_name_col <- gsub(".fastq", "", raw_name_col)
-
-# collapse into tables
-raw_count <- cbind(raw_name_col, raw_reads)
-
-# change column names
-colnames(raw_count) <- c("sample", "raw_count")
-```
-
-## track reads - R 
-```{r}
-# get sample list without samples that were filtered out
-sample_list <- raw_count$sample
-samples_remove <- c("RAJ0019YZ_genotek", "THA0065JZ_genotek")
-sample_mod <- sample_list[!(sample_list %in% samples_remove)]
-# alphabetical
-sample_mod <- sample_mod[order(names(setNames(sample_mod, sample_mod)))]
-# get read acounts for all steps
 getN <- function(x) sum(getUniques(x))
-filtered <- as.data.frame(as.matrix(sapply(derepFs, getN)))
-filtered$sample <- sample_mod
-denoised <- as.data.frame(as.matrix(sapply(dadaFs, getN)))
-denoised$sample <- sample_mod
-nochim <- as.data.frame(as.matrix(rowSums(seqtab)))
-nochim$sample <- sample_mod
-
-# merge into table
-track <- merge(raw_count, filtered, by = "sample", all = T)
-track <- merge(track, denoised, by = "sample", all = T)
-track <- merge(track, nochim, by = "sample", all = T)
-colnames(track) <- c("sample", "input", "filtered", "denoised", "nochim")
-head(track)
+track <- cbind(out_subsetted, sapply(dadaFs, getN), rowSums(seqtab))
+colnames(track) <- c("input", "filtered", "denoisedF", "nochim")
+rownames(track) <- sam.names_subsetted
+track <- as.data.frame(track)
 track$retained_overall <- track$nochim / track$input
 
 # save read track table
-# write.csv(track, file = "output/track_reads.csv")
+write.csv(track, file = "output/track_reads.csv")
 ```
 
 ## assign taxonomy
@@ -186,7 +137,14 @@ map<-data.frame(map)
 
 # construct object
 map <- map[!duplicated(map$SampleID),] 
-all(rownames(seqtab) %in% map$SampleID) # TRUE
+all(rownames(seqtab) %in% map$SampleID) # check if TRUE
+
+#If false, run the lines below to remove sequences without meta data and metadata without sequences
+seqtab[(rownames(seqtab) %in% map$SampleID),]->seqtab
+map[(map$SampleID %in% rownames(seqtab)),]->map
+#this should now be TRUE
+all(rownames(seqtab) %in% map$SampleID)
+
 rownames(map) <- map$SampleID
 keep.cols=names(map)
 samdf <- map[rownames(seqtab), keep.cols]
@@ -198,6 +156,6 @@ ps <- phyloseq(tax_table(taxtab),
 ps
 
 # save phyloseq object
-# saveRDS(ps, "output/oralmicrobiome_ps.rds")
+saveRDS(ps, "output/oralmicrobiome_ps.rds")
 ```
 

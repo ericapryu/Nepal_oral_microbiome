@@ -15,12 +15,12 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## load packages
 ```{r}
-library("phyloseq");packageVersion("phyloseq")
-library("ggplot2");packageVersion("ggplot2")
-library("decontam");packageVersion("decontam")
-library("microbiome");packageVersion("microbiome")
-library("dplyr");packageVersion("dplyr")
-library("data.table");packageVersion("data.table")
+library(phyloseq)
+library(ggplot2)
+library(decontam)
+library(microbiome)
+library(dplyr)
+library(data.table)
 ```
 
 ## load in phyloseq object
@@ -59,14 +59,8 @@ table(contamdf.freq$contaminant)
 # how abundant are the contaminant ASVs?
 head(which(contamdf.freq$contaminant))
 
-# plot contaminant ASV vs noncontaminant and save as svg
-svg("freq_plot.svg")
-plot_frequency(phyloseq_BDNA, taxa_names(phyloseq_BDNA)[c(2,865)], conc="BDNA") + 
-  xlab("DNA Concentration")
-dev.off() 
-
-# png version
-png("freq_plot.png")
+# plot contaminant ASV vs noncontaminant and save as pdf
+png("output/freq_plot.pdf")
 plot_frequency(phyloseq_BDNA, taxa_names(phyloseq_BDNA)[c(2,865)], conc="BDNA") + 
   xlab("DNA Concentration")
 dev.off() 
@@ -110,7 +104,7 @@ ggplot(data=df.pa, aes(x=pa.neg, y=pa.pos, color=contaminant)) + geom_point() +
 phyloseq.noncontam_all <- prune_taxa(!contamdf.prev$contaminant, phyloseq.noncontam)
 
 ## save phyloseq object with contaminants removed
-# saveRDS(phyloseq.noncontam_all, "output/ps_noncontam.rds")
+saveRDS(phyloseq.noncontam_all, "output/ps_noncontam.rds")
 ```
 
 ## examine which taxa are getting removed
@@ -149,13 +143,13 @@ psoil_contam_tax <- select(contam_tax_samp, contains("psoil"))
 qiagen_contam_tax <- qiagen_contam_tax[, colSums(qiagen_contam_tax!= 0) > 0]
 psoil_contam_tax <- psoil_contam_tax[, colSums(psoil_contam_tax!= 0) > 0]
 
+# check 
 dim(qiagen_contam_tax)
 dim(psoil_contam_tax)
 
 # remove samples with less than 10 counts of contaminating taxa
 qiagen_contam_tax_10 <- qiagen_contam_tax[, colSums(qiagen_contam_tax) > 10]
 dim(qiagen_contam_tax_10)
-
 psoil_contam_tax_10 <- psoil_contam_tax[, colSums(psoil_contam_tax) > 10]
 dim(psoil_contam_tax_10)
 
@@ -166,4 +160,12 @@ psoil_contam_tax_10$Row.names <- contam_tax_samp$Row.names
 # merge with taxonomic classification
 qiagen_taxID <- merge(contam_tax_comb, qiagen_contam_tax_10, by = "Row.names")
 psoil_taxID <- merge(contam_tax_comb, psoil_contam_tax_10, by = "Row.names")
+
+# remove taxa that 
+qiagen_taxID  <- qiagen_taxID[rowSums(qiagen_taxID[grep("_genotek", colnames(qiagen_taxID))]) > 0, ]
+psoil_taxID  <- psoil_taxID[rowSums(psoil_taxID[grep("_psoil", colnames(psoil_taxID))]) > 0, ]
+
+# save tables listing which contaminants are primarily in which samples
+write.csv(qiagen_taxID, file = "output/qiagen_contaminants.csv")
+write.csv(psoil_taxID, file = "output/psoil_contaminants.csv")
 ```
