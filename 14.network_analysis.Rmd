@@ -1,0 +1,163 @@
+---
+title: "network_analysis"
+author: "Erica Ryu"
+date: "6/6/2023"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 15. Network Analysis
+
+## The purpose of this script is to generate a network of the oral microbiome
+
+## install SpiecEasi (if not already installed)
+```{r}
+# library(devtools)
+# install_github("zdk123/SpiecEasi")
+# library(SpiecEasi)
+```
+
+## load packages
+```{r}
+library(phyloseq)
+library(SpiecEasi)
+library(Matrix)
+library(data.table)
+library(dplyr)
+library(tidyr)
+library(igraph)
+library(ggplot2)
+library(magrittr)
+library(boot)
+```
+
+## load data
+```{r}
+# oral microbiome phyloseq
+phyloseq <- readRDS("output/ps_complete.rds")
+
+# subset based on extraction kit
+qiagen <- subset_samples(phyloseq, Condition == "Qiagen")
+```
+
+## prep oral microbiome data
+```{r}
+phy_genus <- tax_glom(qiagen, "Genus", NArm = FALSE);phy_genus
+otu_table <- as.data.frame(as.matrix(phy_genus@otu_table))
+
+setDT(otu_table, keep.rownames = TRUE)[]
+colnames(otu_table)[1] <- "SampleID"
+
+otu_table2 <- otu_table %>% data.frame %>% magrittr::set_rownames(.$SampleID)
+otu_table2 <- otu_table2[,-1]
+otu_table2 <- t(otu_table2)
+tax_table <- as.data.frame(as.matrix(phy_genus@tax_table))
+
+otu_tax <- merge(otu_table2, tax_table, by = 0, all = TRUE)
+
+# change colnames to genus name
+otu_tax$Genus <- replace_na(otu_tax$Genus, "_unclassified")
+# and add higher taxonomic level to unclassified
+otu_tax$Phylum <- ifelse(is.na(otu_tax$Phylum), otu_tax$Kingdom, otu_tax$Phylum)
+otu_tax$Class <- ifelse(is.na(otu_tax$Class), otu_tax$Phylum, otu_tax$Class)
+otu_tax$Order <- ifelse(is.na(otu_tax$Order), otu_tax$Class, otu_tax$Order)
+otu_tax$Family <- ifelse(is.na(otu_tax$Family), otu_tax$Order, otu_tax$Family)
+
+otu_tax$Genus <- ifelse(otu_tax$Genus == "_unclassified", paste(otu_tax$Family, otu_tax$Genus, sep = ""), otu_tax$Genus)
+
+# rename completely unclassified ASV
+otu_tax$Genus <- gsub("NA_unclassified", "Unclassified", otu_tax$Genus)
+
+# make genus rownames
+rownames(otu_tax) <- otu_tax$Genus
+# and remove taxonomic columns
+otu_tax <- subset(otu_tax, select = -c(Row.names, Kingdom, Phylum, Class, Order, Family, Genus))
+
+otu_tax_t <- t(otu_tax)
+```
+
+## run sparcc
+```{r}
+set.seed(203)
+sparcc_output <- sparcc(otu_tax_t)
+```
+
+## format sparcc outputs
+```{r}
+# Define threshold for SparCC correlation matrix for the graph
+sparcc.graph <- abs(sparcc_output$Cor) >= 0.5
+diag(sparcc.graph) <- 0
+sparcc.graph <- Matrix(sparcc.graph, sparse=TRUE)
+# Create igraph object
+ig.sparcc <- adj2igraph(sparcc.graph, vertex.attr=list(name=rownames(otu_tax)))
+# apply layout
+am.coord <- layout.fruchterman.reingold(ig.sparcc)
+```
+
+## centrality
+```{r}
+degr_cent_sparcc <- centr_degree(ig.sparcc, mode = 'all')
+degr_cent_sparcc <- degr_cent_sparcc$res
+
+# Compute betweenness centrality
+betw_cent_sparcc <- igraph::betweenness(ig.sparcc)
+
+# make into one dataframe
+sparcc_cent <- data.frame(label = rownames(otu_tax),
+                   degree = degr_cent_sparcc, 
+                   betweeness = betw_cent_sparcc)
+
+# plot histogram of degree distributions
+ggplot(data = sparcc_cent, aes(x = degree)) +
+  geom_bar(alpha = .5, position = 'identity') +
+  ggtitle('Degree distribution')
+```
+
+## examine taxa with at least one edge
+```{r}
+# plot taxa with at least one edge
+isolated_sparcc <- which(degree(ig.sparcc)==0)
+ig.sparcc_wo0 <- delete.vertices(ig.sparcc, isolated_sparcc)
+am.coord_sparcc <- am.coord[-isolated_sparcc,]
+plot(ig.sparcc_wo0, 
+    vertex.size = 5+degr_cent_sparcc,   # Change node size
+     vertex.shape = 'circle',      # Specify node shape
+     asp = 0,  layout = am.coord_sparcc)
+
+# get centrality only for taxa with edges
+sparcc_cent_wo0 <- filter(sparcc_cent, degree != 0)
+```
+
+## make CAGs
+```{r}
+set.seed(101)
+mod_groups_sparcc_wo0 <- cluster_fast_greedy(ig.sparcc_wo0)
+mod_groups_sparcc_wo0_plot <- mod_groups_sparcc_wo0$membership
+
+modularity(mod_groups_sparcc_wo0)
+
+clusterOneIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==1)
+clusterOneOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterOneIndices_sparcc]
+clusterTwoIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==2)
+clusterTwoOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterTwoIndices_sparcc]
+clusterThreeIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==3)
+clusterThreeOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterThreeIndices_sparcc]
+clusterFourIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==4)
+clusterFourOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterFourIndices_sparcc]
+clusterFiveIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==5)
+clusterFiveOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterFiveIndices_sparcc]
+clusterSixIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==6)
+clusterSixOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterSixIndices_sparcc]
+
+# combine into one dataframe
+CAGs <- stack(mget(c("clusterOneOtus_sparcc", "clusterTwoOtus_sparcc", "clusterThreeOtus_sparcc", "clusterFourOtus_sparcc", "clusterFiveOtus_sparcc", "clusterSixOtus_sparcc")))
+```
+
+## save tables for input into cytoscope for visualization
+```{r}
+write.graph(ig.sparcc_wo0, file="output/sparcc_v2.txt", format="ncol")
+write.table(CAGs, file="output/CAGs.txt", sep="\t", row.names = FALSE, quote=FALSE)
+```

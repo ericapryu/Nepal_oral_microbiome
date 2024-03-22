@@ -25,14 +25,14 @@ library(ALDEx2)
 
 ## load phyloseq object
 ```{r}
-# rarefied oral microbiome
+# oral microbiome phyloseq
 phyloseq_complete <- readRDS("output/ps_complete.rds")
 
 # subset based on extraction kit
 qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
 
-# rarefied gut microbiome
-rarefied_gut <- readRDS("output/gut_rarefied_phyloseq.rds")
+# gut microbiome phyloseq
+gut_phyloseq <- readRDS("data/gut_phyloseq.rds")
 ```
 
 ## load colors
@@ -66,20 +66,14 @@ otu_tax$Family <- ifelse(is.na(otu_tax$Family), otu_tax$Order, otu_tax$Family)
 
 otu_tax$Genus <- ifelse(otu_tax$Genus == "_unclassified", paste(otu_tax$Family, otu_tax$Genus, sep = ""), otu_tax$Genus)
 
-# remove completely unclassified taxon
-otu_tax <- otu_tax[!is.na(otu_tax$Kingdom),]
+# rename completely unclassified ASV
+otu_tax$Genus <- gsub("NA_unclassified", "Unclassified", otu_tax$Genus)
 
 # set genus column as rownames
 rownames(otu_tax) <- otu_tax$Genus
 
 # remove taxonomic columns
 otu_tax <- subset(otu_tax, select = -c(Row.names, Kingdom, Phylum, Class, Order, Family, Genus))
-```
-
-## prep for ALDEx2
-```{r}
-otu_tax_1000 <- otu_tax*1000
-otu_tax_rnd <- round(otu_tax_1000)
 ```
 
 ## ALDEx2 kw
@@ -98,68 +92,9 @@ set.seed(123)
 model_kw <- aldex.kw(transform_kw)
 ```
 
-## testing different ways to handle relabund*psuedocount
-```{r}
-## 100
-otu_tax_100 <- otu_tax*100
-otu_tax_rnd100 <- round(otu_tax_100)
-
-transform_kw100 <- aldex.clr(otu_tax_rnd100, conds, mc.samples=1000, denom="all")
-
-# generate model
-set.seed(123)
-model_kw100 <- aldex.kw(transform_kw100)
-##### doesn't work
-
-
-## 1000
-otu_tax_1000 <- otu_tax*1000
-otu_tax_rnd1000 <- round(otu_tax_1000)
-
-transform_kw1000 <- aldex.clr(otu_tax_rnd1000, conds, mc.samples=1000, denom="all")
-
-# generate model
-set.seed(123)
-model_kw1000 <- aldex.kw(transform_kw1000)
-
-
-### 10000
-otu_tax_10000 <- otu_tax*10000
-otu_tax_rnd10000 <- round(otu_tax_10000)
-
-transform_kw10000 <- aldex.clr(otu_tax_rnd10000, conds, mc.samples=1000, denom="all")
-
-# generate model
-set.seed(123)
-model_kw10000 <- aldex.kw(transform_kw10000)
-
-
-### 100000
-otu_tax_100000 <- otu_tax*100000
-otu_tax_rnd100000 <- round(otu_tax_100000)
-
-transform_kw100000 <- aldex.clr(otu_tax_rnd100000, conds, mc.samples=1000, denom="all")
-
-# generate model
-set.seed(123)
-model_kw100000 <- aldex.kw(transform_kw100000)
-
-
-## 100000000000
-otu_tax_100000000000 <- otu_tax*100000000000
-otu_tax_rnd100000000000 <- round(otu_tax_100000000000)
-
-transform_kw100000000000 <- aldex.clr(otu_tax_rnd100000000000, conds, mc.samples=1000, denom="all")
-
-# generate model
-set.seed(123)
-model_kw100000000000 <- aldex.kw(transform_kw100000000000)
-```
-
-
 ## prep gut microbiome taxa table
 ```{r}
-phy_genus_gut <-  tax_glom(rarefied_gut, "Genus", NArm = FALSE);phy_genus_gut
+phy_genus_gut <-  tax_glom(gut_phyloseq, "Genus", NArm = FALSE);phy_genus_gut
 otu_table_gut <- as.data.frame(as.matrix(phy_genus_gut@otu_table))
 
 setDT(otu_table_gut, keep.rownames = TRUE)[]
@@ -182,8 +117,8 @@ otu_tax_gut$Family <- ifelse(is.na(otu_tax_gut$Family), otu_tax_gut$Order, otu_t
 
 otu_tax_gut$Genus <- ifelse(otu_tax_gut$Genus == "_unclassified", paste(otu_tax_gut$Family, otu_tax_gut$Genus, sep = ""), otu_tax_gut$Genus)
 
-# remove completely unclassified taxon
-otu_tax_gut <- otu_tax_gut[!is.na(otu_tax_gut$Kingdom),]
+# rename completely unclassified ASV
+otu_tax_gut$Genus <- gsub("NA_unclassified", "Unclassified", otu_tax_gut$Genus)
 
 # make genus rownames
 rownames(otu_tax_gut) <- otu_tax_gut$Genus
@@ -206,6 +141,12 @@ set.seed(100)
 model_kw_gut <- aldex.kw(transform_kw_gut)
 ```
 
+## only keep methods that are being analyzed
+```{r}
+model_kw <- subset(model_kw, select = c("kw.ep", "kw.eBH"))
+model_kw_gut <- subset(model_kw_gut, select = c("kw.ep", "kw.eBH"))
+```
+
 ## compare oral and gut
 ```{r}
 model_kw_filt <- model_kw[model_kw$kw.eBH < 0.05,]
@@ -214,7 +155,6 @@ model_kw_gut_filt <- model_kw_gut[model_kw_gut$kw.eBH < 0.05,]
 
 ## save ALDEx2 results
 ```{r}
-# write.csv(model_kw, file = "output/model_kw.csv")
-
-# write.csv(model_kw_gut, file = "output/model_kw_gut.csv")
+write.csv(model_kw, file = "output/model_kw.csv")
+write.csv(model_kw_gut, file = "output/model_kw_gut.csv")
 ```

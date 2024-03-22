@@ -1,0 +1,425 @@
+---
+title: "taxavlifestyle"
+author: "Erica Ryu"
+date: "6/21/2023"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# 11. Taxa vs lifestyle
+
+## The purpose is to identify associations between specific lifestyle factors and the DA taxa identified from the trend test. 
+
+## load packages
+```{r}
+library(phyloseq)
+library(data.table)
+library(magrittr)
+library(tidyr)
+library(dplyr)
+library(ggplot2)
+library(purrr)
+
+library(heatmaply)
+```
+
+## load data
+```{r}
+phyloseq_complete <- readRDS("output/ps_complete.rds")
+
+# subset based on extraction kit
+qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
+```
+
+## colors
+```{r}
+twocolors <- c("deepskyblue", "lightsalmon" )
+fourcolors <- c("darkslateblue", "deepskyblue", "lightblue3", "lightsalmon")
+heatmap_col <- c("#009194", "white")
+```
+
+## prep taxa table
+```{r}
+phy_genus <-  tax_glom(qiagen, "Genus", NArm = FALSE);phy_genus
+phy_genus_RA <- transform_sample_counts(phy_genus, function(otu) otu/sum(otu))
+otu_table <- as.data.frame(as.matrix(phy_genus_RA@otu_table))
+
+setDT(otu_table, keep.rownames = TRUE)[]
+colnames(otu_table)[1] <- "SampleID"
+
+otu_table2 <- otu_table %>% data.frame %>% set_rownames(.$SampleID)
+otu_table2 <- otu_table2[,-1]
+otu_table2 <- t(otu_table2)
+tax_table <- as.data.frame(as.matrix(phy_genus_RA@tax_table))
+
+otu_tax <- merge(otu_table2, tax_table, by = 0, all = TRUE)
+
+# change colnames to genus name
+otu_tax$Genus <- replace_na(otu_tax$Genus, "_unclassified")
+# and add higher taxonomic level to unclassified
+otu_tax$Phylum <- ifelse(is.na(otu_tax$Phylum), otu_tax$Kingdom, otu_tax$Phylum)
+otu_tax$Class <- ifelse(is.na(otu_tax$Class), otu_tax$Phylum, otu_tax$Class)
+otu_tax$Order <- ifelse(is.na(otu_tax$Order), otu_tax$Class, otu_tax$Order)
+otu_tax$Family <- ifelse(is.na(otu_tax$Family), otu_tax$Order, otu_tax$Family)
+
+otu_tax$Genus <- ifelse(otu_tax$Genus == "_unclassified", paste(otu_tax$Family, otu_tax$Genus, sep = ""), otu_tax$Genus)
+
+# rename NA_classified
+otu_tax$Genus <- gsub("NA_unclassified", "Unclassified", otu_tax$Genus)
+
+# make genus rownames
+rownames(otu_tax) <- otu_tax$Genus
+# and remove taxonomic columns
+otu_tax <- subset(otu_tax, select = -c(Row.names, Kingdom, Phylum, Class, Order, Family, Genus))
+
+# remove europeans because no survey data for Europeans
+otu_tax_wo_euro <- dplyr::select(otu_tax, -contains("EUR"))
+
+# change to dataframe
+otu_tax <- as.data.frame(otu_tax_wo_euro)
+
+# add rownames
+rownames(otu_tax) <- rownames(otu_tax_wo_euro)
+
+```
+
+## subset to DA taxa
+```{r}
+# subset to taxa of interest
+taxa <- c("Streptobacillus", "Porphyromonadaceae_unclassified", "Granulicatella", "Moraxella", "Simonsiella", "Neisseria", "Bacteroidetes_unclassified", "Brachymonas", "Atopobium")
+
+# extracting data frame rows
+selected_otu_tax <- otu_tax[rownames(otu_tax) %in% taxa, ] 
+```
+
+## set up metadata 
+```{r}
+meta <- as.data.frame(qiagen@sam_data)
+df_meta <- as.data.frame(as.matrix(meta))
+df_meta_num <- dplyr::select(df_meta, "SEX2":"RHR")
+
+dim(df_meta_num)
+
+## remove factors and samples with lots of NAs
+# filter out Americans
+df_meta_num$Lifestyle <- df_meta$Lifestyle
+wo_euro <- subset(df_meta_num, Lifestyle != "Industrial")
+
+# remove columns specific to women (pregnancy, menstruation, etc)
+wo_mens <- dplyr::select(wo_euro, -c("MENS2":"MISC2"))
+
+# remove columns for bitter taste perception
+wo_bitter <- dplyr::select(wo_mens, -c("BTP_CTRL2":"BTP_SBZ2"))
+
+# remove columns for vitals
+wo_vital <- dplyr::select(wo_bitter, -c("HGT2":"RHR"))
+
+# remove geographical info
+wo_geo <- dplyr::select(wo_vital, -c("LAT2":"ALT2"))
+
+## change sporadic NAs
+# change NAs in EXER_FREQ2
+wo_geo$EXER_FREQ2[is.na(wo_geo$EXER_FREQ2)] <- 0
+
+# change NAs in SICK_LOC2
+wo_geo$SICK_LOC2[is.na(wo_geo$SICK_LOC2)] <- 0
+
+# change NAs in BRUSH_FREQ2
+wo_geo$BRUSH_FREQ2[is.na(wo_geo$BRUSH_FREQ2)] <- 0
+
+# change NAs in BLKT2
+blkt <- wo_geo
+blkt$BLKT2[is.na(blkt$BLKT2)] <- 0
+
+# change NA in HS
+household <- blkt
+household$HS2[is.na(household$HS2)] <- 2
+
+# final df for CA
+df_meta_wo_lifestyle <- dplyr::select(household, -c("Lifestyle"))
+df_meta_final <- as.data.frame(sapply(df_meta_wo_lifestyle, as.factor))
+
+dim(df_meta_final)
+```
+
+## generate linear models
+```{r}
+# set up df for entry
+lifestylevtaxa <- data.frame(matrix(ncol = 10, nrow = 37))
+colnames(lifestylevtaxa) <- c("lifestyle", "streptobacillus", "porphyromonadaceae", "granulicatella", "moraxella", "simonsiella", "neisseria", "bacteroidetes_unclassified", "brachymonas", "atopobium")
+lifestylevtaxa$lifestyle <- colnames(df_meta_final)
+
+# streptobacillus
+strepto <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Streptobacillus", ]))
+
+strepto_vector <- c()
+
+set.seed(123)
+for(i in colnames(df_meta_final)){
+  obj <- print(lm(as.formula(paste0("strepto ~ ", i)), data = df_meta_final))
+  strepto_vector = c(strepto_vector, summary(obj)$coefficients[,"Pr(>|t|)"][[2]])
+}
+
+lifestylevtaxa$streptobacillus <- strepto_vector
+
+# porphyromonadaceae
+porph <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Porphyromonadaceae_unclassified", ]))
+
+porph_vector <- c()
+
+set.seed(123)
+for(i in colnames(df_meta_wo_lifestyle)){
+  obj <- print(lm(as.formula(paste0("porph ~", i)),  data=df_meta_final))
+  porph_vector = c(porph_vector, summary(obj)$coefficients[,"Pr(>|t|)"][[2]])
+}
+
+lifestylevtaxa$porphyromonadaceae <- porph_vector
+
+# granulicatella
+granul <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Granulicatella", ]))
+
+granul_vector <- c()
+
+set.seed(123)
+for(i in colnames(df_meta_wo_lifestyle)){
+  obj <- print(lm(as.formula(paste0("granul ~", i)),  data=df_meta_final))
+  granul_vector = c(granul_vector, summary(obj)$coefficients[,"Pr(>|t|)"][[2]])
+}
+
+lifestylevtaxa$granulicatella <- granul_vector
+
+# moraxella
+morax <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Moraxella", ]))
+
+morax_vector <- c()
+
+set.seed(123)
+for(i in colnames(df_meta_wo_lifestyle)){
+  obj <- print(lm(as.formula(paste0("morax ~", i)),  data=df_meta_final))
+  morax_vector = c(morax_vector, summary(obj)$coefficients[,"Pr(>|t|)"][[2]])
+}
+
+lifestylevtaxa$moraxella <- morax_vector
+
+# simonsiella
+simon <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Simonsiella", ]))
+
+simon_vector <- c()
+
+set.seed(123)
+for(i in colnames(df_meta_wo_lifestyle)){
+  obj <- print(lm(as.formula(paste0("simon ~", i)),  data=df_meta_final))
+  simon_vector = c(simon_vector, summary(obj)$coefficients[,"Pr(>|t|)"][[2]])
+}
+
+lifestylevtaxa$simonsiella <- simon_vector
+
+# neisseria
+neiss <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Neisseria", ]))
+
+neiss_vector <- c()
+
+set.seed(123)
+for(i in colnames(df_meta_wo_lifestyle)){
+  obj <- print(lm(as.formula(paste0("neiss ~", i)),  data=df_meta_final))
+  neiss_vector = c(neiss_vector, summary(obj)$coefficients[,"Pr(>|t|)"][[2]])
+}
+
+lifestylevtaxa$neisseria <- neiss_vector
+
+# bacteroidetes_unclassified
+bacter <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Bacteroidetes_unclassified", ]))
+
+bacter_vector <- c()
+
+set.seed(123)
+for(i in colnames(df_meta_wo_lifestyle)){
+  obj <- print(lm(as.formula(paste0("bacter ~", i)),  data=df_meta_final))
+  bacter_vector = c(bacter_vector, summary(obj)$coefficients[,"Pr(>|t|)"][[2]])
+}
+
+lifestylevtaxa$bacteroidetes_unclassified <- bacter_vector
+
+# brachymonas
+brachy <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Brachymonas", ]))
+
+brachy_vector <- c()
+
+set.seed(123)
+for(i in colnames(df_meta_wo_lifestyle)){
+  obj <- print(lm(as.formula(paste0("brachy ~", i)),  data=df_meta_final))
+  brachy_vector = c(brachy_vector, summary(obj)$coefficients[,"Pr(>|t|)"][[2]])
+}
+
+lifestylevtaxa$brachymonas <- brachy_vector
+
+# atopobium
+atopo <- as.numeric(as.vector(selected_otu_tax[rownames(selected_otu_tax) %in% "Atopobium", ]))
+
+atopo_vector <- c()
+
+set.seed(123)
+for(i in colnames(df_meta_wo_lifestyle)){
+  obj <- print(lm(as.formula(paste0("atopo ~", i)),  data=df_meta_final))
+  atopo_vector = c(atopo_vector, summary(obj)$coefficients[,"Pr(>|t|)"][[2]])
+}
+
+lifestylevtaxa$atopobium <- atopo_vector
+```
+
+## multiple test adjustment
+```{r}
+lifestylevtaxaBH <- lifestylevtaxa
+
+# strepto
+lifestylevtaxaBH$strepto_BHadj_p_value <- p.adjust(lifestylevtaxaBH$streptobacillus, method = "BH", n = length(lifestylevtaxaBH$streptobacillus))
+
+# porph
+lifestylevtaxaBH$porph_BHadj_p_value <- p.adjust(lifestylevtaxaBH$porphyromonadaceae, method = "BH", n = length(lifestylevtaxaBH$porphyromonadaceae))
+
+# granul
+lifestylevtaxaBH$granul_BHadj_p_value <- p.adjust(lifestylevtaxaBH$granulicatella, method = "BH", n = length(lifestylevtaxaBH$granulicatella))
+
+# morax
+lifestylevtaxaBH$morax_BHadj_p_value <- p.adjust(lifestylevtaxaBH$moraxella, method = "BH", n = length(lifestylevtaxaBH$moraxella))
+
+# simon
+lifestylevtaxaBH$simon_BHadj_p_value <- p.adjust(lifestylevtaxaBH$simonsiella, method = "BH", n = length(lifestylevtaxaBH$simonsiella))
+
+# neiss
+lifestylevtaxaBH$neiss_BHadj_p_value <- p.adjust(lifestylevtaxaBH$neisseria, method = "BH", n = length(lifestylevtaxaBH$neisseria))
+
+# bacter
+lifestylevtaxaBH$bacter_BHadj_p_value <- p.adjust(lifestylevtaxaBH$bacteroidetes_unclassified, method = "BH", n = length(lifestylevtaxaBH$bacteroidetes_unclassified))
+
+# brachy
+lifestylevtaxaBH$brachy_BHadj_p_value <- p.adjust(lifestylevtaxaBH$brachymonas, method = "BH", n = length(lifestylevtaxaBH$brachymonas))
+
+# atopo
+lifestylevtaxaBH$atopo_BHadj_p_value <- p.adjust(lifestylevtaxaBH$atopobium, method = "BH", n = length(lifestylevtaxaBH$atopobium))
+
+# write.csv(lifestylevtaxaBH, file = "output/lifestylevtaxaBH.csv")
+```
+
+## individual microbes vs lifestyle factors
+```{r}
+# log transform
+mk_logit <- function(otu_tax) {
+  return(log10(otu_tax+0.0001))}
+log_otu_tax <- map_df(otu_tax, .f = mk_logit)
+
+rownames(log_otu_tax) <- rownames(otu_tax)
+relabund_otu_tax <- t(log_otu_tax)
+relabund_otu_tax <- as.data.frame(relabund_otu_tax)
+
+# grain - add lifestyle info and plot
+relabund_otu_tax_grain <- relabund_otu_tax
+relabund_otu_tax_grain$grain <- as.character(df_meta_final$GRA2)
+relabund_otu_tax_grain$grain <- ifelse(grepl("0",relabund_otu_tax_grain$grain), "Barley/Maize", "Rice/Wheat")
+relabund_otu_tax_grain$grain <- factor(relabund_otu_tax_grain$grain, levels=c("Barley/Maize", "Rice/Wheat"))
+
+# plot
+plot_brachy_grain <- ggplot(relabund_otu_tax_grain, aes(x = grain, y = Brachymonas)) +
+  geom_violin(aes(fill=grain), alpha=0.8) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
+  scale_x_discrete(limits=c("Barley/Maize", "Rice/Wheat")) +
+  scale_fill_manual(name=NULL,
+                    values=twocolors,
+                    breaks=c("Barley/Maize", "Rice/Wheat"),
+                    labels=c("Barley/Maize", "Rice/Wheat")) +
+  geom_jitter(size = 1, col="darkgreen", width = 0.1) + 
+  labs(title = "Brachymonas against Grain", x = "Grain", y = "log10 Relative Abundance")+
+  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
+  theme(legend.position = "none")
+
+ggsave(file="figures/plot_brachy_grain.pdf", plot=plot_brachy_grain, width=3, height=4)
+
+# smoking - add lifestyle info and plot
+relabund_otu_tax_smok <- relabund_otu_tax
+relabund_otu_tax_smok$smoking <- as.character(df_meta_final$SMOK2)
+relabund_otu_tax_smok$smoking <- ifelse(grepl("0",relabund_otu_tax_smok$smoking), "No", "Yes")
+relabund_otu_tax_smok$smoking <- factor(relabund_otu_tax_smok$smoking, levels=c("Yes", "No"))
+
+smok_taxa <- relabund_otu_tax_smok[,c("Porphyromonadaceae_unclassified","Granulicatella", "Neisseria","Atopobium", "smoking")]
+
+smok_taxa <- subset(relabund_otu_tax_smok, select = c("Porphyromonadaceae_unclassified","Granulicatella", "Neisseria","Atopobium", "smoking"))
+
+# change format
+smok_taxa <- pivot_longer(smok_taxa, !smoking, names_to = "Taxa", values_to = "Rel_abund")
+
+# set level
+smok_taxa$smoking <- factor(smok_taxa$smoking, ordered = TRUE, levels=c("Yes", "No"))
+
+plot_smok <- ggplot(smok_taxa, aes(x = smoking, y = Rel_abund, group = smoking), color = black) +
+  geom_violin(aes(fill=smoking), alpha=0.8) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
+  scale_x_discrete(limits=c("Yes", "No")) +
+  scale_fill_manual(name=NULL,
+                    values=twocolors,
+                    breaks=c("Yes", "No"),
+                    labels=c("Yes", "No")) +
+  geom_jitter(size = 1, width=0.1, col="darkgreen") + facet_wrap(~Taxa, ncol = 2, scales = "fixed") +
+  scale_y_continuous(labels = function(x) format(x, nsmall = 1)) +
+  labs(title = "Taxa against Smoking", x = "Smoking", y = "log10 Relative Abundance")+
+  theme(strip.text = element_text(face = "italic")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
+  theme(legend.position = "none")
+
+ggsave(file="figures/plot_smok.pdf", plot=plot_smok, width=6, height=4)
+
+# sisnu
+# subset
+relabund_otu_tax_sisnu <- relabund_otu_tax
+## sisnu
+relabund_otu_tax_sisnu$Sisnu <- as.character(df_meta_final$Sisnu2)
+relabund_otu_tax_sisnu$Sisnu <- ifelse(grepl("0",relabund_otu_tax_sisnu$Sisnu), "No", "Yes")
+relabund_otu_tax_sisnu$Sisnu <- factor(relabund_otu_tax_sisnu$Sisnu, levels=c("Yes", "No"))
+
+sisnu_taxa <- relabund_otu_tax_sisnu[,c("Porphyromonadaceae_unclassified","Brachymonas", "Moraxella", "Sisnu")]
+
+# change format
+sisnu_taxa <- pivot_longer(sisnu_taxa, !Sisnu, names_to = "Taxa", values_to = "Rel_abund")
+
+# set level
+sisnu_taxa$Sisnu <- factor(sisnu_taxa$Sisnu, ordered = TRUE, levels=c("Yes", "No"))
+
+plot_sisnu <- ggplot(sisnu_taxa, aes(x = Sisnu, y = Rel_abund, group = Sisnu), color = black) +
+  geom_violin(aes(fill=Sisnu), alpha=0.8) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
+  scale_x_discrete(limits=c("Yes", "No")) +
+  scale_fill_manual(name=NULL,
+                    values=twocolors,
+                    breaks=c("Yes", "No"),
+                    labels=c("Yes", "No")) +
+  geom_jitter(size = 1, width=0.15, col="darkgreen") + facet_wrap(~Taxa, ncol = 2, scales = "fixed") +
+  labs(title = "Taxa against Sisnu", x = "Sisnu consumption", y = "log10 Relative Abundance")+
+  theme(strip.text = element_text(face = "italic")) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
+  theme(legend.position = "none")
+
+ggsave(file="figures/plot_sisnu.pdf", plot=plot_sisnu, width=6, height=4)
+
+```
+
+## heatmap of lifestyle v taxa
+```{r}
+lifestylevtaxa_hm <- lifestylevtaxa
+
+# change to human readable labels
+rownames(lifestylevtaxa_hm) <- c("sex", "literacy", "location", "drinking_water", "fuel", "kitchen_loc", "toilet", "grain", "Sisnu", "fish", "meat", "black_tea", "milk_tea", "soda", "milk", "yogurt", "yogurt_freq", "fermented", "ferm_freq", "food_source", "scarcity", "smoking", "tobacco", "alcohol", "exercise", "exercise_freq", "sick_checkup", "checkup_loc", "health_travel", "meds", "ayurvedic", "brushing", "brushing_freq", "age", "education", "household", "children")
+
+lifestylevtaxa_hm <- subset(lifestylevtaxa_hm, select = -c(lifestyle))
+
+lifestylevtaxa_hm <- as.matrix(lifestylevtaxa_hm)
+
+# plot and save
+
+# hm_plot <- heatmaply(lifestylevtaxa_hm,
+#           colors = heatmap_col, file = "figures/hm_plot.pdf", width = 700, height = 800, text_angle = 15)
+
+# NOTE: if heatmaply fails to save the heatmap, either run webshot::install_phantomjs() or install orca at https://github.com/plotly/orca#installation
+```
+
