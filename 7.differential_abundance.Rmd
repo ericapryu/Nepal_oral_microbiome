@@ -23,8 +23,9 @@ library(tidyr)
 library(ALDEx2)
 ```
 
-## load phyloseq object
+## load phyloseq object and set seed
 ```{r}
+set.seed(123)
 # oral microbiome phyloseq
 phyloseq_complete <- readRDS("output/ps_complete.rds")
 
@@ -85,11 +86,12 @@ conds <- ifelse(grepl("CHE",otu_table$SampleID), "Foragers",
                               ifelse(grepl("NEW01",otu_table$SampleID) | grepl("NEW11",otu_table$SampleID), "Expats", "Recently Settled"))))
 
 # transform data
+set.seed(123)
 transform_kw <- aldex.clr(otu_tax, conds, mc.samples=1000, denom="all")
 
 # generate model
-set.seed(123)
 model_kw <- aldex.kw(transform_kw)
+
 ```
 
 ## prep gut microbiome taxa table
@@ -134,10 +136,10 @@ conds_gut <- ifelse(grepl("CHE",otu_table_gut$SampleID), "Foragers",
                               ifelse(grepl("THA",otu_table_gut$SampleID), "Agriculturalists", "Recently Settled")))
 
 # transform data
+set.seed(100)
 transform_kw_gut <- aldex.clr(otu_tax_gut, conds_gut, mc.samples=1000, denom="all")
 
 # generate model
-set.seed(100)
 model_kw_gut <- aldex.kw(transform_kw_gut)
 ```
 
@@ -155,6 +157,6 @@ model_kw_gut_filt <- model_kw_gut[model_kw_gut$kw.eBH < 0.05,]
 
 ## save ALDEx2 results
 ```{r}
-write.csv(model_kw, file = "output/model_kw.csv")
-write.csv(model_kw_gut, file = "output/model_kw_gut.csv")
+# write.csv(model_kw, file = "output/model_kw.csv")
+# write.csv(model_kw_gut, file = "output/model_kw_gut.csv")
 ```

@@ -104,7 +104,10 @@ for(i in colnames(trend_asvs)){
   trend_vector = c(trend_vector, obj$p.value)
 }
 ## Note: last iteration of trend test will always error as the error pertains to the lifestyle column. ignore error
+```
 
+## run multiple test correction
+```{r}
 trend_result$p_value <- trend_vector
 
 # run multiple test correction

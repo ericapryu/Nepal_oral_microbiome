@@ -41,8 +41,10 @@ for(i in ii) { print(plotQualityProfile(fileFwd[i]) + ggtitle("Fwd")) }
 if(!file_test("-d", filt_path)) dir.create(filt_path)
 filtFwd <- file.path(filt_path, basename(fileFwd))
 
-out <- filterAndTrim(fileFwd, filtFwd, trimLeft = 10, truncLen=c(150),
-              maxN=0, maxEE=2, truncQ=2, compress=TRUE, multithread=TRUE)
+for(i in seq_along(fileFwd)) {
+  fastqFilter(c(fileFwd[[i]]),c(filtFwd[[i]]),trimLeft=10, truncLen=c(150),maxN=0, maxEE=2, truncQ=2,compress=TRUE)
+}
+## justify choices
 ```
 
 ## infer sequence variants
@@ -81,23 +83,71 @@ sum(seqtab)/sum(seqtab.all)
 table(nchar(getSequences(seqtab)))
 ```
 
-## track reads
-```{r}
-# filter out the samples that did not pass filtering
-samples_remove <- c("RAJ0019YZ_genotek.fastq", "THA0065JZ_genotek.fastq")
-out_subsetted <- out[!(rownames(out) %in% samples_remove), ]
-samples_remove_names <- c("RAJ0019YZ_genotek", "THA0065JZ_genotek")
-sam.names_subsetted <- sam.names[!(sam.names %in% samples_remove_names)]
+##  track reads - bash prep
+These steps are conducted in bash.
+```{bash eval=FALSE, echo=T}
+### get read counts for raw fastq files
+# change directory to where project is located
+cd Nepal_oral_microbiome
 
+# add read counts to the file saved in the output directory
+for filename in data/fwd/*.fastq
+do
+echo $(cat $filename|wc -l)/4|bc >> output/raw_read_counts_per_step
+done
+
+# get list of columns
+echo data/fwd/*.fastq > output/raw_filename
+```
+
+## track reads - R prep
+These steps are conducted in R.
+```{r}
+# import raw count data
+raw_name <- read.table("output/raw_filename")
+raw_reads <- read.table("output/raw_read_counts_per_step")
+
+# transpose names
+raw_name_col <- t(raw_name)
+
+# clean up names
+raw_name_col <- gsub("data/fwd/", "", raw_name_col)
+raw_name_col <- gsub(".fastq", "", raw_name_col)
+
+# collapse into tables
+raw_count <- cbind(raw_name_col, raw_reads)
+
+# change column names
+colnames(raw_count) <- c("sample", "raw_count")
+
+# filter out samples that did not pass initial read QC
+samples_remove <- c("RAJ0019YZ_genotek", "THA0065JZ_genotek")
+raw_count_mod <- raw_count[!(raw_count$sample %in% samples_remove),]
+```
+
+## track reads - R 
+```{r}
+# put in alphabetical order
+raw_count_mod <- raw_count_mod[order(names(setNames(raw_count_mod, raw_count_mod)))]
+# get read counts for all steps
 getN <- function(x) sum(getUniques(x))
-track <- cbind(out_subsetted, sapply(dadaFs, getN), rowSums(seqtab))
-colnames(track) <- c("input", "filtered", "denoisedF", "nochim")
-rownames(track) <- sam.names_subsetted
-track <- as.data.frame(track)
+filtered <- as.data.frame(as.matrix(sapply(derepFs, getN)))
+filtered$sample <- raw_count_mod$sample
+denoised <- as.data.frame(as.matrix(sapply(dadaFs, getN)))
+denoised$sample <- raw_count_mod$sample
+nochim <- as.data.frame(as.matrix(rowSums(seqtab)))
+nochim$sample <- raw_count_mod$sample
+
+# merge into table
+track <- merge(raw_count_mod, filtered, by = "sample", all = T)
+track <- merge(track, denoised, by = "sample", all = T)
+track <- merge(track, nochim, by = "sample", all = T)
+colnames(track) <- c("sample", "input", "filtered", "denoised", "nochim")
+head(track)
 track$retained_overall <- track$nochim / track$input
 
 # save read track table
-write.csv(track, file = "output/track_reads.csv")
+# write.csv(track, file = "output/track_reads.csv")
 ```
 
 ## assign taxonomy
@@ -156,6 +206,6 @@ ps <- phyloseq(tax_table(taxtab),
 ps
 
 # save phyloseq object
-saveRDS(ps, "output/oralmicrobiome_ps.rds")
+# saveRDS(ps, "output/oralmicrobiome_ps.rds")
 ```
 

@@ -22,7 +22,6 @@ library(tidyr)
 library(dplyr)
 library(ggplot2)
 library(purrr)
-
 library(heatmaply)
 ```
 
@@ -31,7 +30,7 @@ library(heatmaply)
 phyloseq_complete <- readRDS("output/ps_complete.rds")
 
 # subset based on extraction kit
-qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
+qiagen <- subset_samples(ps3, Condition == "Qiagen")
 ```
 
 ## colors

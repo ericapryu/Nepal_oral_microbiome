@@ -416,7 +416,7 @@ ridge_top_plat_resist_order_plot <- ggplot(top_plat_resist_order_plot, aes(x = R
                     labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
   labs(x = "Log Relative Abundance", y ="Taxa")
 
-ggsave(file="output/ridge_top_plat_resist_order_plot.pdf", plot=ridge_top_plat_resist_order_plot, width=6, height=4)
+ggsave(file="figures/ridge_top_plat_resist_order_plot.pdf", plot=ridge_top_plat_resist_order_plot, width=6, height=4)
 
 ## plat resist and fusobacterium in particular
 plat_resist_fuso <- filter(top_plat_resist_order_plot, Genus == "Fusobacterium")
@@ -442,7 +442,7 @@ plot_plat_resist_fuso <- ggplot(plat_resist_fuso, aes(x = lifestyle, y = Rel_abu
 
 JonckheereTerpstraTest(as.numeric(Rel_abund) ~ lifestyle, data = plat_resist_fuso)
 
-ggsave(file="output/plot_plat_resist_fuso.pdf", plot=plot_plat_resist_fuso, width=6, height=3)
+ggsave(file="figures/plot_plat_resist_fuso.pdf", plot=plot_plat_resist_fuso, width=6, height=3)
 
 # traditional vs industrialized compared
 plot_trad_indus_plat_resist_fuso <- ggplot(plat_resist_fuso, aes(x = trad_indus, y = Rel_abund)) +
@@ -460,7 +460,7 @@ plot_trad_indus_plat_resist_fuso <- ggplot(plat_resist_fuso, aes(x = trad_indus,
 
 kruskal.test(Rel_abund ~ trad_indus, data = plat_resist_fuso)
 
-ggsave(file="output/plot_trad_indus_plat_resist_fuso.pdf", plot=plot_trad_indus_plat_resist_fuso, width=6, height=3)
+ggsave(file="figures/plot_trad_indus_plat_resist_fuso.pdf", plot=plot_trad_indus_plat_resist_fuso, width=6, height=3)
 ```
 
 ## find top taxa for Biofilm formation - Pseudomonas aeruginosa
@@ -510,7 +510,7 @@ ridge_top_biofilm_order_plot <- ggplot(top_biofilm_order_plot, aes(x = Rel_abund
                     labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
   labs(x = "Log Relative Abundance", y ="Taxa")
 
-ggsave(file="output/ridge_top_biofilm_order_plot.pdf", plot=ridge_top_biofilm_order_plot, width=6, height=3)
+ggsave(file="figures/ridge_top_biofilm_order_plot.pdf", plot=ridge_top_biofilm_order_plot, width=6, height=3)
 
 ## filter out biofilm and neisseria
 biofilm_neis <- filter(top_biofilm_order_plot, Genus == "Neisseria")
@@ -536,7 +536,7 @@ plot_biofilm_neis <- ggplot(biofilm_neis, aes(x = lifestyle, y = Rel_abund)) +
 
 JonckheereTerpstraTest(as.numeric(Rel_abund) ~ lifestyle, data = biofilm_neis)
 
-ggsave(file="output/plot_biofilm_neis.pdf", plot=plot_biofilm_neis, width=4, height=3)
+ggsave(file="figures/plot_biofilm_neis.pdf", plot=plot_biofilm_neis, width=4, height=3)
 
 # just traditional and industrialized compared
 plot_trad_indus_biofilm_neis <- ggplot(biofilm_neis, aes(x = trad_indus, y = Rel_abund)) +
@@ -552,7 +552,7 @@ plot_trad_indus_biofilm_neis <- ggplot(biofilm_neis, aes(x = trad_indus, y = Rel
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-ggsave(file="output/plot_trad_indus_biofilm_neis.pdf", plot=plot_trad_indus_biofilm_neis, width=4, height=3)
+ggsave(file="figures/plot_trad_indus_biofilm_neis.pdf", plot=plot_trad_indus_biofilm_neis, width=4, height=3)
 
 kruskal.test(Rel_abund ~ trad_indus, data = biofilm_neis)
 
@@ -578,7 +578,7 @@ plot_biofilm_camp <- ggplot(biofilm_camp, aes(x = lifestyle, y = Rel_abund)) +
 
 JonckheereTerpstraTest(as.numeric(Rel_abund) ~ lifestyle, data = biofilm_camp)
 
-ggsave(file="output/plot_biofilm_camp.pdf", plot=plot_biofilm_camp, width=6, height=3)
+ggsave(file="figures/plot_biofilm_camp.pdf", plot=plot_biofilm_camp, width=6, height=3)
 ```
 
 ## differential abundance analysis with KOs to prep for GO enrichment

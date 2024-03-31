@@ -60,10 +60,10 @@ table(contamdf.freq$contaminant)
 head(which(contamdf.freq$contaminant))
 
 # plot contaminant ASV vs noncontaminant and save as pdf
-png("output/freq_plot.pdf")
-plot_frequency(phyloseq_BDNA, taxa_names(phyloseq_BDNA)[c(2,865)], conc="BDNA") + 
-  xlab("DNA Concentration")
-dev.off() 
+# pdf("output/freq_plot.pdf")
+# plot_frequency(phyloseq_BDNA, taxa_names(phyloseq_BDNA)[c(2,865)], conc="BDNA") + 
+#   xlab("DNA Concentration")
+# dev.off() 
 ```
 
 ## remove frequency contaminant taxa from phyloseq object
@@ -104,7 +104,7 @@ ggplot(data=df.pa, aes(x=pa.neg, y=pa.pos, color=contaminant)) + geom_point() +
 phyloseq.noncontam_all <- prune_taxa(!contamdf.prev$contaminant, phyloseq.noncontam)
 
 ## save phyloseq object with contaminants removed
-saveRDS(phyloseq.noncontam_all, "output/ps_noncontam.rds")
+# saveRDS(phyloseq.noncontam_all, "output/ps_noncontam.rds")
 ```
 
 ## examine which taxa are getting removed
@@ -166,6 +166,6 @@ qiagen_taxID  <- qiagen_taxID[rowSums(qiagen_taxID[grep("_genotek", colnames(qia
 psoil_taxID  <- psoil_taxID[rowSums(psoil_taxID[grep("_psoil", colnames(psoil_taxID))]) > 0, ]
 
 # save tables listing which contaminants are primarily in which samples
-write.csv(qiagen_taxID, file = "output/qiagen_contaminants.csv")
-write.csv(psoil_taxID, file = "output/psoil_contaminants.csv")
+# write.csv(qiagen_taxID, file = "output/qiagen_contaminants.csv")
+# write.csv(psoil_taxID, file = "output/psoil_contaminants.csv")
 ```
