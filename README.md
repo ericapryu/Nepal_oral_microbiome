@@ -18,8 +18,8 @@ This repository contains all scripts used to analyze the Nepali oral microbiome.
 8. microbiome_trend - perform trend test on all genera to see which microbial abundances follow the lifestyle trend
 9. CCA - conduct CCA to identify which specific lifestyle factors played the greatest role in the microbiome
 10. Taxa_lifestyle - identify significant associations between specific lifestyle factors and DA microbes identified from the trend test.
-11. PICRUSt2_prep - prepping data for PICRUSt2
-12. picrust2_stratified (shell) - run stratified version of PICRUST2 to predict pathway abundances.
-13. PICRUSt2_analysis - analyze PICRUSt2 output. All PICRUSt2 output from script 13 is assumed to be stored in the output directory in its own directory "picrust2_result_output"
+11. picrust2_prep - prepping data for PICRUSt2
+12. picrust_stratified (shell) - run stratified version of PICRUST2 to predict pathway abundances.
+13. picrust_analysis - analyze PICRUSt2 output. All PICRUSt2 output from script 12 is assumed to be stored in the output directory in its own directory "picrust2_qiagen_output"
 14. network_analysis - conduct network analysis of the microbiome using SPARCC
 15. gut_oral_comparison - examine the relationship between the oral and gut microbiomes

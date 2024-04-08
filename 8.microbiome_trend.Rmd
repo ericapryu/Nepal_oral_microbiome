@@ -116,7 +116,7 @@ trend_result$BHadj_p_value <- p.adjust(trend_result$p_value, method = "BH", n = 
 
 ## save output of trend test
 ```{r}
-write.csv(trend_result, file = "output/trend_result.csv")
+# write.csv(trend_result, file = "output/trend_result.csv")
 ```
 
 ## plot microbial abundances against lifestyle
@@ -167,5 +167,5 @@ plot_sig_taxa <- ggplot(log_sig_taxa, aes(x = lifestyle, y = Rel_abund, group = 
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
   theme(legend.position = "none") + xlab("")
 
-ggsave(file="figures/plot_sig_taxa.pdf", plot=plot_sig_taxa, width=7, height=7)
+# ggsave(file="figures/plot_sig_taxa.pdf", plot=plot_sig_taxa, width=7, height=7)
 ```

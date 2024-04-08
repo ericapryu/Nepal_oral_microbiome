@@ -81,7 +81,7 @@ otu_tax_t <- t(otu_tax)
 
 ## run sparcc
 ```{r}
-set.seed(203)
+set.seed(100)
 sparcc_output <- sparcc(otu_tax_t)
 ```
 
@@ -105,10 +105,14 @@ degr_cent_sparcc <- degr_cent_sparcc$res
 # Compute betweenness centrality
 betw_cent_sparcc <- igraph::betweenness(ig.sparcc)
 
+# compute closeness centrality
+close_cent_sparcc <- igraph::closeness(ig.sparcc)
+
 # make into one dataframe
 sparcc_cent <- data.frame(label = rownames(otu_tax),
                    degree = degr_cent_sparcc, 
-                   betweeness = betw_cent_sparcc)
+                   betweenness = betw_cent_sparcc,
+                   closeness = close_cent_sparcc)
 
 # plot histogram of degree distributions
 ggplot(data = sparcc_cent, aes(x = degree)) +
@@ -131,26 +135,26 @@ plot(ig.sparcc_wo0,
 sparcc_cent_wo0 <- filter(sparcc_cent, degree != 0)
 ```
 
-## make CAGs
+## calculate modularity and make CAGs
 ```{r}
-set.seed(101)
-mod_groups_sparcc_wo0 <- cluster_fast_greedy(ig.sparcc_wo0)
-mod_groups_sparcc_wo0_plot <- mod_groups_sparcc_wo0$membership
+set.seed(100)
+modul_sparcc <- cluster_edge_betweenness(ig.sparcc_wo0)
+modularity(modul_sparcc)
 
-modularity(mod_groups_sparcc_wo0)
+modul_sparcc_CAGs <- modul_sparcc$membership
 
-clusterOneIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==1)
-clusterOneOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterOneIndices_sparcc]
-clusterTwoIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==2)
-clusterTwoOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterTwoIndices_sparcc]
-clusterThreeIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==3)
-clusterThreeOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterThreeIndices_sparcc]
-clusterFourIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==4)
-clusterFourOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterFourIndices_sparcc]
-clusterFiveIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==5)
-clusterFiveOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterFiveIndices_sparcc]
-clusterSixIndices_sparcc <- which(mod_groups_sparcc_wo0$membership==6)
-clusterSixOtus_sparcc <- mod_groups_sparcc_wo0$names[clusterSixIndices_sparcc]
+clusterOneIndices_sparcc <- which(modul_sparcc$membership==1)
+clusterOneOtus_sparcc <- modul_sparcc$names[clusterOneIndices_sparcc]
+clusterTwoIndices_sparcc <- which(modul_sparcc$membership==2)
+clusterTwoOtus_sparcc <- modul_sparcc$names[clusterTwoIndices_sparcc]
+clusterThreeIndices_sparcc <- which(modul_sparcc$membership==3)
+clusterThreeOtus_sparcc <- modul_sparcc$names[clusterThreeIndices_sparcc]
+clusterFourIndices_sparcc <- which(modul_sparcc$membership==4)
+clusterFourOtus_sparcc <- modul_sparcc$names[clusterFourIndices_sparcc]
+clusterFiveIndices_sparcc <- which(modul_sparcc$membership==5)
+clusterFiveOtus_sparcc <- modul_sparcc$names[clusterFiveIndices_sparcc]
+clusterSixIndices_sparcc <- which(modul_sparcc$membership==6)
+clusterSixOtus_sparcc <- modul_sparcc$names[clusterSixIndices_sparcc]
 
 # combine into one dataframe
 CAGs <- stack(mget(c("clusterOneOtus_sparcc", "clusterTwoOtus_sparcc", "clusterThreeOtus_sparcc", "clusterFourOtus_sparcc", "clusterFiveOtus_sparcc", "clusterSixOtus_sparcc")))
@@ -158,6 +162,102 @@ CAGs <- stack(mget(c("clusterOneOtus_sparcc", "clusterTwoOtus_sparcc", "clusterT
 
 ## save tables for input into cytoscope for visualization
 ```{r}
-write.graph(ig.sparcc_wo0, file="output/sparcc_v2.txt", format="ncol")
-write.table(CAGs, file="output/CAGs.txt", sep="\t", row.names = FALSE, quote=FALSE)
+# write.graph(ig.sparcc_wo0, file="output/sparcc_v3.txt", format="ncol")
+# write.table(CAGs, file="output/CAGs_v3.txt", sep="\t", row.names = FALSE, quote=FALSE)
 ```
+
+## ratio of CAGs across groups
+```{r}
+# subset genera table to each CAG
+CAG_gen <- subset(otu_tax_t, select = c(clusterOneOtus_sparcc, clusterTwoOtus_sparcc, clusterThreeOtus_sparcc, clusterFourOtus_sparcc, clusterFiveOtus_sparcc, clusterSixOtus_sparcc))
+
+CAG_gen <- as.data.frame(CAG_gen)
+
+# reformat CAGs into relative proportions
+## separate into individual CAGs
+CAG1_gen <- subset(CAG_gen, select = c(clusterOneOtus_sparcc))
+CAG2_gen <- subset(CAG_gen, select = c(clusterTwoOtus_sparcc))
+CAG3_gen <- subset(CAG_gen, select = c(clusterThreeOtus_sparcc))
+CAG4_gen <- subset(CAG_gen, select = c(clusterFourOtus_sparcc))
+CAG5_gen <- subset(CAG_gen, select = c(clusterFiveOtus_sparcc))
+CAG6_gen <- subset(CAG_gen, select = c(clusterSixOtus_sparcc))
+
+# find total for each CAG for each sample
+CAG1 <- rowSums(CAG1_gen)
+CAG2 <- rowSums(CAG2_gen)
+CAG3 <- rowSums(CAG3_gen)
+CAG4 <- rowSums(CAG4_gen)
+CAG5 <- rowSums(CAG5_gen)
+CAG6 <- rowSums(CAG6_gen)
+CAG_total <- rowSums(CAG_gen)
+
+# make all values relative to total within sample
+CAG_proportions <- cbind(CAG1, CAG2, CAG3, CAG4, CAG5, CAG6, CAG_total)
+CAG_proportions <- CAG_proportions/CAG_proportions[,"CAG_total"]
+
+# add lifestyle and reformat
+CAG_lifestyle <- CAG_proportions
+CAG_lifestyle <- subset(CAG_lifestyle, select = -c(CAG_total))
+CAG_lifestyle <- as.data.frame(CAG_lifestyle)
+CAG_lifestyle$lifestyle <- ifelse(grepl("CHE", rownames(CAG_lifestyle)), "Foragers", ifelse(grepl("EUR", rownames(CAG_lifestyle)), "American Industrialist", ifelse(grepl("NEW00", rownames(CAG_lifestyle)) | grepl("NEW10", rownames(CAG_lifestyle)) | grepl("THA", rownames(CAG_lifestyle)), "Agriculturalists", ifelse(grepl("NEW01", rownames(CAG_lifestyle)) | grepl("NEW11", rownames(CAG_lifestyle)), "Expats", "Recently Settled"))))
+
+# get mean value for each lifestyle per CAG
+CAG_forg <- c(mean(CAG_lifestyle$CAG1[CAG_lifestyle$lifestyle == "Foragers"]),
+              mean(CAG_lifestyle$CAG2[CAG_lifestyle$lifestyle == "Foragers"]),
+              mean(CAG_lifestyle$CAG3[CAG_lifestyle$lifestyle == "Foragers"]),
+              mean(CAG_lifestyle$CAG4[CAG_lifestyle$lifestyle == "Foragers"]),
+              mean(CAG_lifestyle$CAG5[CAG_lifestyle$lifestyle == "Foragers"]),
+              mean(CAG_lifestyle$CAG6[CAG_lifestyle$lifestyle == "Foragers"]))
+CAG_rs <- c(mean(CAG_lifestyle$CAG1[CAG_lifestyle$lifestyle == "Recently Settled"]),
+            mean(CAG_lifestyle$CAG2[CAG_lifestyle$lifestyle == "Recently Settled"]),
+            mean(CAG_lifestyle$CAG3[CAG_lifestyle$lifestyle == "Recently Settled"]),
+            mean(CAG_lifestyle$CAG4[CAG_lifestyle$lifestyle == "Recently Settled"]),
+            mean(CAG_lifestyle$CAG5[CAG_lifestyle$lifestyle == "Recently Settled"]),
+            mean(CAG_lifestyle$CAG6[CAG_lifestyle$lifestyle == "Recently Settled"]))
+CAG_ag <- c(mean(CAG_lifestyle$CAG1[CAG_lifestyle$lifestyle == "Agriculturalists"]),
+            mean(CAG_lifestyle$CAG2[CAG_lifestyle$lifestyle == "Agriculturalists"]),
+            mean(CAG_lifestyle$CAG3[CAG_lifestyle$lifestyle == "Agriculturalists"]),
+            mean(CAG_lifestyle$CAG4[CAG_lifestyle$lifestyle == "Agriculturalists"]),
+            mean(CAG_lifestyle$CAG5[CAG_lifestyle$lifestyle == "Agriculturalists"]),
+            mean(CAG_lifestyle$CAG6[CAG_lifestyle$lifestyle == "Agriculturalists"]))
+CAG_expat <- c(mean(CAG_lifestyle$CAG1[CAG_lifestyle$lifestyle == "Expats"]),
+               mean(CAG_lifestyle$CAG2[CAG_lifestyle$lifestyle == "Expats"]),
+               mean(CAG_lifestyle$CAG3[CAG_lifestyle$lifestyle == "Expats"]),
+               mean(CAG_lifestyle$CAG4[CAG_lifestyle$lifestyle == "Expats"]),
+               mean(CAG_lifestyle$CAG5[CAG_lifestyle$lifestyle == "Expats"]),
+               mean(CAG_lifestyle$CAG6[CAG_lifestyle$lifestyle == "Expats"]))
+CAG_indus <- c(mean(CAG_lifestyle$CAG1[CAG_lifestyle$lifestyle == "American Industrialist"]),
+               mean(CAG_lifestyle$CAG2[CAG_lifestyle$lifestyle == "American Industrialist"]),
+               mean(CAG_lifestyle$CAG3[CAG_lifestyle$lifestyle == "American Industrialist"]),
+               mean(CAG_lifestyle$CAG4[CAG_lifestyle$lifestyle == "American Industrialist"]),
+               mean(CAG_lifestyle$CAG5[CAG_lifestyle$lifestyle == "American Industrialist"]),
+               mean(CAG_lifestyle$CAG6[CAG_lifestyle$lifestyle == "American Industrialist"]))
+
+# combine into one table
+CAG_avg <- as.data.frame(rbind(CAG_forg, CAG_rs, CAG_ag, CAG_expat, CAG_indus))
+colnames(CAG_avg) <- c("CAG1", "CAG2", "CAG3", "CAG4", "CAG5", "CAG6")
+CAG_avg$lifestyle <- c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrialist")
+
+# reformat for plotting
+CAG_lifestyle_longer <- pivot_longer(CAG_avg, cols=c("CAG1", "CAG2", "CAG3", "CAG4", "CAG5", "CAG6"), names_to = "CAG", values_to = "proportion")
+
+# add levels
+CAG_lifestyle_longer$lifestyle <- factor(CAG_lifestyle_longer$lifestyle, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrialist"))
+
+CAG_colors <- c("#FFFF00", "#FF0033", "#FFFFFF", "#0000FF", "#66CCFF", "#000000")
+
+CAG_pie <- ggplot(CAG_lifestyle_longer, aes(x="", y=proportion, group=CAG, fill=CAG)) +
+  geom_bar(width = 1, stat = "identity", color = "dark gray", linewidth = 0.2) + 
+  scale_fill_manual(name=NULL,
+                    values=CAG_colors,
+                    breaks=c("CAG1", "CAG2", "CAG3", "CAG4", "CAG5", "CAG6"),
+                    labels=c("CAG1", "CAG2", "CAG3", "CAG4", "CAG5", "CAG6")) +
+         coord_polar("y", start=0) +  
+         facet_grid(.~ lifestyle) + 
+         guides(fill = FALSE) +
+         theme_void() 
+
+# ggsave(file="figures/CAG_pie.pdf", plot=CAG_pie, width=8, height=3)
+
+```
+

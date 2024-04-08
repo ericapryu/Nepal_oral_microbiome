@@ -145,14 +145,15 @@ plot_pca <- ggplot(pca_plot, aes(x = as.numeric(PC1), y = as.numeric(PC2))) +
                     breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
                     labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"))+
   labs(title = "PICRUSt2 PCA by Lifestyle",
-       x = "PC1 (28.4%)",
+       x = "PC1 (28.5%)",
        y = "PC2 (18.9%)")
 
-ggsave(file = "figures/plot_pca.pdf", plot = plot_pca, width = 6, height = 3)
+# ggsave(file = "figures/plot_pca.pdf", plot = plot_pca, width = 6, height = 3)
 ```
 
 ## assess if lifestyles differ based on predicted function
 ```{r}
+set.seed(100)
 adonis2(pca_coord ~ metadata$Lifestyle, data = metadata, method = "euclidean",
          permutations = 99999)
 ```
@@ -168,11 +169,11 @@ plot_pc1 <- ggplot(pca_plot, aes(x = lifestyle, y = as.numeric(PC1), group = lif
                     breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
                     labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
   geom_jitter(size = 1, col = "darkgreen", width = 0.1) +
-  labs(title = "PC1 by Lifestyle", x = "Lifestyle", y = "PC1 (28.4%)") + 
+  labs(title = "PC1 by Lifestyle", x = "Lifestyle", y = "PC1 (28.5%)") + 
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-ggsave(file = "figures/picrust_pc1.pdf", plot = plot_pc1, width = 4, height = 3)
+# ggsave(file = "figures/picrust_pc1.pdf", plot = plot_pc1, width = 4, height = 3)
 
 library(DescTools)
 
@@ -192,7 +193,7 @@ plot_pc2 <- ggplot(pca_plot, aes(x = lifestyle, y = as.numeric(PC2), group = lif
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-ggsave(file = "figures/picrust_pc2.pdf", plot = plot_pc2, width = 4, height = 3)
+# ggsave(file = "figures/picrust_pc2.pdf", plot = plot_pc2, width = 4, height = 3)
 
 # does PC2 follow the lifestyle trend
 JonckheereTerpstraTest(as.numeric(PC2) ~ lifestyle, data = pca_plot)
@@ -210,7 +211,7 @@ plot_pc3 <- ggplot(pca_plot, aes(x = lifestyle, y = as.numeric(PC3), group = lif
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-ggsave(file = "figures/picrust_pc3.pdf", plot = plot_pc3, width = 4, height = 3)
+# ggsave(file = "figures/picrust_pc3.pdf", plot = plot_pc3, width = 4, height = 3)
 
 # does PC3 follow the lifestyle trend
 JonckheereTerpstraTest(as.numeric(PC3) ~ lifestyle, data = pca_plot)
@@ -224,11 +225,11 @@ plot_pc4 <- ggplot(pca_plot, aes(x = lifestyle, y = as.numeric(PC4), group = lif
                     breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
                     labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
   geom_jitter(size = 1, col = "darkgreen", width = 0.1) +
-  labs(title = "PC4 by Lifestyle", x = "Lifestyle", y = "PC1 (5.9%)") + 
+  labs(title = "PC4 by Lifestyle", x = "Lifestyle", y = "PC1 (5.91%)") + 
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-ggsave(file = "figures/picrust_pc4.pdf", plot = plot_pc4, width = 4, height = 3)
+# ggsave(file = "figures/picrust_pc4.pdf", plot = plot_pc4, width = 4, height = 3)
 
 # does PC4 follow the lifestyle trend
 JonckheereTerpstraTest(as.numeric(PC4) ~ lifestyle, data = pca_plot)
@@ -253,10 +254,13 @@ transform_kw_picrust <- aldex.clr(abundance_aldex, conds_picrust, mc.samples=100
 set.seed(100)
 model_kw_picrust <- aldex.kw(transform_kw_picrust)
 
+# only keep methods that are being analyzed
+model_kw_picrust <- subset(model_kw_picrust, select = c("kw.ep", "kw.eBH"))
+
 # filter to unadjusted p significant pathways
 model_kw_filt_picrust <- model_kw_picrust[model_kw_picrust$kw.ep < 0.05,]
 
-write.csv(model_kw_picrust, file = "output/model_kw_picrust.csv")
+# write.csv(model_kw_picrust, file = "output/model_kw_picrust.csv")
 ```
 
 ## categorize (unadjusted p) signifcant functions into broader levels
@@ -284,7 +288,7 @@ num_function <- ggplot(pathway_comb, aes(x = fct_infreq(A))) +
     theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) + 
     theme(legend.position = "none") + xlab("")
 
-ggsave(file="figures/num_function.pdf", plot=num_function, width=6, height=4)
+# ggsave(file="figures/num_function.pdf", plot=num_function, width=6, height=4)
 ```
 
 ## what direction does metabolism go with increasing industrialization?
@@ -337,7 +341,7 @@ plot_metabolism_lifestyle <- ggplot(data = meta_avg_plot, aes(x = Lifestyle, y=A
     labs(y= "Ratio of Average Abundance") +
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95))
 
-ggsave(file="figures/plot_metabolism_lifestyle.pdf", plot=plot_metabolism_lifestyle, width=6, height=3)
+# ggsave(file="figures/plot_metabolism_lifestyle.pdf", plot=plot_metabolism_lifestyle, width=6, height=3)
 
 # plot without Glycerolipid metabolism for visualization purposes
 meta_avg_plot_viz <- subset(meta_avg_plot, description != "Glycerolipid metabolism")
@@ -349,7 +353,7 @@ plot_metabolism_lifestyle_viz <- ggplot(data = meta_avg_plot_viz, aes(x = Lifest
     labs(y= "Ratio of Average Abundance") +
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95))
 
-ggsave(file="figures/plot_metabolism_lifestyle_viz.pdf", plot=plot_metabolism_lifestyle_viz, width=6, height=3)
+# ggsave(file="figures/plot_metabolism_lifestyle_viz.pdf", plot=plot_metabolism_lifestyle_viz, width=6, height=3)
 ```
 
 ## which microbes point to which pathways
@@ -416,7 +420,7 @@ ridge_top_plat_resist_order_plot <- ggplot(top_plat_resist_order_plot, aes(x = R
                     labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
   labs(x = "Log Relative Abundance", y ="Taxa")
 
-ggsave(file="figures/ridge_top_plat_resist_order_plot.pdf", plot=ridge_top_plat_resist_order_plot, width=6, height=4)
+# ggsave(file="figures/ridge_top_plat_resist_order_plot.pdf", plot=ridge_top_plat_resist_order_plot, width=6, height=4)
 
 ## plat resist and fusobacterium in particular
 plat_resist_fuso <- filter(top_plat_resist_order_plot, Genus == "Fusobacterium")
@@ -425,24 +429,6 @@ plat_resist_fuso <- filter(top_plat_resist_order_plot, Genus == "Fusobacterium")
 plat_resist_fuso$trad_indus <- ifelse(plat_resist_fuso$lifestyle == "Expats" | plat_resist_fuso$lifestyle == "American Industrialist", "Industrialized", "Traditional")
 
 plat_resist_fuso$trad_indus <- factor(plat_resist_fuso$trad_indus, ordered = TRUE, levels=c("Traditional", "Industrialized"))
-
-# all lifestyles compared
-plot_plat_resist_fuso <- ggplot(plat_resist_fuso, aes(x = lifestyle, y = Rel_abund)) +
-  geom_violin(aes(fill=lifestyle), alpha=0.8) +
-  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
-  scale_x_discrete(limits=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrialist")) + 
-  scale_fill_manual(name=NULL,
-                    values=fivecolors,
-                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrialist"),
-                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
-  geom_jitter(size = 1, col = "darkgreen", width = 0.1) + 
-  labs(x = "Lifestyle", y ="Relative Abundance")+
-  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
-  theme(legend.position = "none")
-
-JonckheereTerpstraTest(as.numeric(Rel_abund) ~ lifestyle, data = plat_resist_fuso)
-
-ggsave(file="figures/plot_plat_resist_fuso.pdf", plot=plot_plat_resist_fuso, width=6, height=3)
 
 # traditional vs industrialized compared
 plot_trad_indus_plat_resist_fuso <- ggplot(plat_resist_fuso, aes(x = trad_indus, y = Rel_abund)) +
@@ -460,7 +446,7 @@ plot_trad_indus_plat_resist_fuso <- ggplot(plat_resist_fuso, aes(x = trad_indus,
 
 kruskal.test(Rel_abund ~ trad_indus, data = plat_resist_fuso)
 
-ggsave(file="figures/plot_trad_indus_plat_resist_fuso.pdf", plot=plot_trad_indus_plat_resist_fuso, width=6, height=3)
+# ggsave(file="figures/plot_trad_indus_plat_resist_fuso.pdf", plot=plot_trad_indus_plat_resist_fuso, width=6, height=3)
 ```
 
 ## find top taxa for Biofilm formation - Pseudomonas aeruginosa
@@ -510,7 +496,7 @@ ridge_top_biofilm_order_plot <- ggplot(top_biofilm_order_plot, aes(x = Rel_abund
                     labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
   labs(x = "Log Relative Abundance", y ="Taxa")
 
-ggsave(file="figures/ridge_top_biofilm_order_plot.pdf", plot=ridge_top_biofilm_order_plot, width=6, height=3)
+# ggsave(file="figures/ridge_top_biofilm_order_plot.pdf", plot=ridge_top_biofilm_order_plot, width=6, height=3)
 
 ## filter out biofilm and neisseria
 biofilm_neis <- filter(top_biofilm_order_plot, Genus == "Neisseria")
@@ -520,25 +506,7 @@ biofilm_neis$trad_indus <- ifelse(biofilm_neis$lifestyle == "Expats" | biofilm_n
 
 biofilm_neis$trad_indus <- factor(biofilm_neis$trad_indus, ordered = TRUE, levels=c("Traditional", "Industrialized"))
 
-# all lifestyles compared
-plot_biofilm_neis <- ggplot(biofilm_neis, aes(x = lifestyle, y = Rel_abund)) +
-  geom_violin(aes(fill=lifestyle), alpha=0.8) +
-  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
-  scale_x_discrete(limits=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrialist")) + 
-  scale_fill_manual(name=NULL,
-                    values=fivecolors,
-                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrialist"),
-                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
-  geom_jitter(size = 1, col = "darkgreen", width = 0.1) + 
-  labs(x = "Lifestyle", y ="Relative Abundance")+
-  theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
-  theme(legend.position = "none")
-
-JonckheereTerpstraTest(as.numeric(Rel_abund) ~ lifestyle, data = biofilm_neis)
-
-ggsave(file="figures/plot_biofilm_neis.pdf", plot=plot_biofilm_neis, width=4, height=3)
-
-# just traditional and industrialized compared
+# traditional and industrialized compared
 plot_trad_indus_biofilm_neis <- ggplot(biofilm_neis, aes(x = trad_indus, y = Rel_abund)) +
   geom_violin(aes(fill=trad_indus), alpha=0.8) +
   geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
@@ -552,15 +520,12 @@ plot_trad_indus_biofilm_neis <- ggplot(biofilm_neis, aes(x = trad_indus, y = Rel
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-ggsave(file="figures/plot_trad_indus_biofilm_neis.pdf", plot=plot_trad_indus_biofilm_neis, width=4, height=3)
+# ggsave(file="figures/plot_trad_indus_biofilm_neis.pdf", plot=plot_trad_indus_biofilm_neis, width=4, height=3)
 
 kruskal.test(Rel_abund ~ trad_indus, data = biofilm_neis)
 
 ## filter for plat resist and campylobacter
 biofilm_camp <- filter(top_biofilm_order_plot, Genus == "Campylobacter")
-
-# traditonal + industr
-biofilm_camp$trad_indus <- ifelse(biofilm_camp$lifestyle == "Expats" | biofilm_camp$lifestyle == "American Industrialist", "Industrialized", "Traditional")
 
 # all lifestyles compared
 plot_biofilm_camp <- ggplot(biofilm_camp, aes(x = lifestyle, y = Rel_abund)) +
@@ -573,12 +538,12 @@ plot_biofilm_camp <- ggplot(biofilm_camp, aes(x = lifestyle, y = Rel_abund)) +
                     labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
   geom_jitter(size = 1, col = "darkgreen", width = 0.1) + 
   labs(x = "Lifestyle", y ="Relative Abundance")+
-  theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
 JonckheereTerpstraTest(as.numeric(Rel_abund) ~ lifestyle, data = biofilm_camp)
 
-ggsave(file="figures/plot_biofilm_camp.pdf", plot=plot_biofilm_camp, width=6, height=3)
+# ggsave(file="figures/plot_biofilm_camp.pdf", plot=plot_biofilm_camp, width=4, height=3)
 ```
 
 ## differential abundance analysis with KOs to prep for GO enrichment
@@ -590,13 +555,14 @@ conds_KO <- ifelse(grepl("CHE", rownames(pca_plot)), "Foragers",
                               ifelse(grepl("NEW01", rownames(pca_plot)) | grepl("NEW11", rownames(pca_plot)), "Expats", "Recently Settled"))))
 
 # make KOs the rownames
-rownames(KO_predict) <- KO_predict$function.
+KO_predict_aldex <- KO_predict
+rownames(KO_predict_aldex) <- KO_predict_aldex$function.
 
 # remove function colulmn
-KO_predict <- subset(KO_predict, select = -c(function.))
+KO_predict_aldex <- subset(KO_predict_aldex, select = -c(function.))
 
 # convert to matrix
-KO_predict_aldex <- round(KO_predict)
+KO_predict_aldex <- round(KO_predict_aldex)
 
 # transform data
 set.seed(100)
@@ -610,9 +576,7 @@ model_kw_KO <- aldex.kw(transform_kw_KO) # warning - this may take 5-6 hours to 
 model_kw_filt_KO <- model_kw_KO[model_kw_KO$kw.ep < 0.05,]
 
 # save
-write.csv(model_kw_KO, file = "output/model_kw_KO.csv")
-
-model_kw_KO <- read.csv("output/model_kw_KO.csv", row.names = TRUE)
+# write.csv(model_kw_KO, file = "output/model_kw_KO.csv")
 ```
 
 ## microbiome functional enrichment
@@ -636,7 +600,7 @@ unadj_sig_path_KO_list_final <- filter(unadj_sig_path_KO_list, unadj_sig_path_KO
 
 unadj_sig_KO_list <- rownames(model_kw_filt_KO)
 
-write.table(unadj_sig_KO_list, file = "output/sigKO_list.txt", row.names=FALSE, col.names = FALSE, sep="\t", quote = FALSE)
+# write.table(unadj_sig_KO_list, file = "output/sigKO_list.txt", row.names=FALSE, col.names = FALSE, sep="\t", quote = FALSE)
 
 # find all K genes present in study
 all_k_list <- KO_predict$function.
@@ -645,5 +609,5 @@ write.table(all_k_list, file = "output/k_list.txt", row.names=FALSE, col.names =
 
 # run microbiome profiler
 run_MicrobiomeProfiler()
-## input sigKO_list, set universe with k_list
+## input contents of sigKO_list into "K gene list", input contents of k_list into universe as "customer_defined_universe"
 ```

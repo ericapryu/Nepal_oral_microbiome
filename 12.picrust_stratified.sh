@@ -5,12 +5,12 @@
 #SBATCH --time=12:00:00  
 #SBATCH --nodes=2
 #SBATCH --mem=10gb
-#SBATCH -o picrust_stratified_qiagen_v3.txt  
+#SBATCH -o picrust_stratified_qiagen.txt  
 #SBATCH -A exd44 
 
 d1=$(date +%s) 
 
-RUN_PATH="/storage/group/exd44/default/epr5208/Himalayan_oral_microbiome/picrust2/v3"
+RUN_PATH="/storage/group/exd44/default/epr5208/Himalayan_oral_microbiome/picrust2"
 
 BIOM="picrust_seq_tab_qiagen"
 SEQ="picrust_seq_qiagen"
@@ -61,12 +61,12 @@ pathway_pipeline.py -i ${OUT_DIR}/KO_metagenome_out_stratified/pred_metagenome_c
                     --per_sequence_function ${OUT_DIR}/KO_predicted.tsv.gz
 
 # add descriptions
-add_descriptions.py -i ${OUT_DIR}/KEGG_pathways_out_stratified/path_abun_unstrat.tsv.gz \
-                    -o ${OUT_DIR}/KEGG_pathways_out_stratified/path_abun_unstrat_descrip.tsv.gz \
+add_descriptions.py -i ${OUT_DIR}/KEGG_pathways_out_stratified/path_abun_unstrat.tsv \
+                    -o ${OUT_DIR}/KEGG_pathways_out_stratified/path_abun_unstrat_descrip.tsv \
                     --custom_map_table ${KEGG_NAME}.tsv
 
-add_descriptions.py -i ${OUT_DIR}/KEGG_pathways_out_stratified/path_abun_unstrat_per_seq.tsv.gz \
-                    -o ${OUT_DIR}/KEGG_pathways_out_stratified/path_abun_unstrat_per_seq_descrip.tsv.gz \
+add_descriptions.py -i ${OUT_DIR}/KEGG_pathways_out_stratified/path_abun_unstrat_per_seq.tsv \
+                    -o ${OUT_DIR}/KEGG_pathways_out_stratified/path_abun_unstrat_per_seq_descrip.tsv \
                     --custom_map_table ${KEGG_NAME}.tsv
 
 

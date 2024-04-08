@@ -30,7 +30,7 @@ library(heatmaply)
 phyloseq_complete <- readRDS("output/ps_complete.rds")
 
 # subset based on extraction kit
-qiagen <- subset_samples(ps3, Condition == "Qiagen")
+qiagen <- subset_samples(phyloseq_complete, Condition == "Qiagen")
 ```
 
 ## colors
@@ -334,7 +334,7 @@ plot_brachy_grain <- ggplot(relabund_otu_tax_grain, aes(x = grain, y = Brachymon
   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-ggsave(file="figures/plot_brachy_grain.pdf", plot=plot_brachy_grain, width=3, height=4)
+# ggsave(file="figures/plot_brachy_grain.pdf", plot=plot_brachy_grain, width=3, height=4)
 
 # smoking - add lifestyle info and plot
 relabund_otu_tax_smok <- relabund_otu_tax
@@ -367,7 +367,7 @@ plot_smok <- ggplot(smok_taxa, aes(x = smoking, y = Rel_abund, group = smoking),
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
   theme(legend.position = "none")
 
-ggsave(file="figures/plot_smok.pdf", plot=plot_smok, width=6, height=4)
+# ggsave(file="figures/plot_smok.pdf", plot=plot_smok, width=6, height=4)
 
 # sisnu
 # subset
@@ -399,7 +399,7 @@ plot_sisnu <- ggplot(sisnu_taxa, aes(x = Sisnu, y = Rel_abund, group = Sisnu), c
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
   theme(legend.position = "none")
 
-ggsave(file="figures/plot_sisnu.pdf", plot=plot_sisnu, width=6, height=4)
+# ggsave(file="figures/plot_sisnu.pdf", plot=plot_sisnu, width=6, height=4)
 
 ```
 

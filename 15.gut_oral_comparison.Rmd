@@ -104,7 +104,7 @@ length(oral_only) <- n
 overlap <- as.data.frame(cbind(both, gut_only, oral_only))
 overlap_names <- paste0(overlap$both, "_genotek")
 
-write.csv(overlap, row.names = FALSE, na = "", file = "output/gut_oral_overlap.csv")
+# write.csv(overlap, row.names = FALSE, na = "", file = "output/gut_oral_overlap.csv")
 ```
 
 ## filter to samples present in both microbiomes
@@ -166,7 +166,7 @@ plot_overlap_oralgut_pcoa1 <- ggplot(pcoa_comb, aes(x = PCoA1_oral, y = PCoA1_gu
 ## correlation
 cor.test(pcoa_comb$PCoA1_oral, pcoa_comb$PCoA1_gut, alternative = "two.sided", method=c("spearman"))
 
-ggsave(file="figures/plot_overlap_oralgut_pcoa1.pdf", plot=plot_overlap_oralgut_pcoa1, width=4, height=2)
+# ggsave(file="figures/plot_overlap_oralgut_pcoa1.pdf", plot=plot_overlap_oralgut_pcoa1, width=4, height=2)
 
 # PCoA1 vs PCoA2
 plot_overlap_oralpcoa1_gutpcoa2 <- ggplot(pcoa_comb, aes(x = PCoA1_oral, y = PCoA2_gut)) +
@@ -183,7 +183,7 @@ plot_overlap_oralpcoa1_gutpcoa2 <- ggplot(pcoa_comb, aes(x = PCoA1_oral, y = PCo
 ## correlation
 cor.test(pcoa_comb$PCoA1_oral, pcoa_comb$PCoA2_gut, alternative = "two.sided", method=c("spearman"))
 
-ggsave(file="figures/plot_overlap_oralpcoa1_gutpcoa2.pdf", plot=plot_overlap_oralpcoa1_gutpcoa2, width=4, height=2)
+# ggsave(file="figures/plot_overlap_oralpcoa1_gutpcoa2.pdf", plot=plot_overlap_oralpcoa1_gutpcoa2, width=4, height=2)
 
 # PCoA2 vs PCoA1
 plot_overlap_oralpcoa2_gutpcoa1 <- ggplot(pcoa_comb, aes(x = PCoA2_oral, y = PCoA1_gut)) +
@@ -200,7 +200,7 @@ plot_overlap_oralpcoa2_gutpcoa1 <- ggplot(pcoa_comb, aes(x = PCoA2_oral, y = PCo
 ## correlation
 cor.test(pcoa_comb$PCoA2_oral, pcoa_comb$PCoA1_gut, alternative = "two.sided", method=c("spearman"))
 
-ggsave(file="figures/plot_overlap_oralpcoa2_gutpcoa1.pdf", plot=plot_overlap_oralpcoa2_gutpcoa1, width=4, height=2)
+# ggsave(file="figures/plot_overlap_oralpcoa2_gutpcoa1.pdf", plot=plot_overlap_oralpcoa2_gutpcoa1, width=4, height=2)
 
 # PCoA2 vs PCoA2
 plot_overlap_oralgut_pcoa2 <- ggplot(pcoa_comb, aes(x = PCoA2_oral, y = PCoA2_gut)) +
@@ -217,7 +217,7 @@ plot_overlap_oralgut_pcoa2 <- ggplot(pcoa_comb, aes(x = PCoA2_oral, y = PCoA2_gu
 ## correlation
 cor.test(pcoa_comb$PCoA2_oral, pcoa_comb$PCoA2_gut, alternative = "two.sided", method=c("spearman"))
 
-ggsave(file="figures/plot_overlap_oralgut_pcoa2.pdf", plot=plot_overlap_oralgut_pcoa2, width=4, height=2)
+# ggsave(file="figures/plot_overlap_oralgut_pcoa2.pdf", plot=plot_overlap_oralgut_pcoa2, width=4, height=2)
 
 # PCoA1 vs PCoA3
 plot_overlap_oralpcoa1_gutpcoa3 <- ggplot(pcoa_comb, aes(x = PCoA1_oral, y = PCoA3_gut)) +
@@ -234,7 +234,7 @@ plot_overlap_oralpcoa1_gutpcoa3 <- ggplot(pcoa_comb, aes(x = PCoA1_oral, y = PCo
 ## correlation
 cor.test(pcoa_comb$PCoA1_oral, pcoa_comb$PCoA3_gut, alternative = "two.sided", method=c("spearman"))
 
-ggsave(file="figures/plot_overlap_oralpcoa1_gutpcoa3.pdf", plot=plot_overlap_oralpcoa1_gutpcoa3, width=4, height=2)
+# ggsave(file="figures/plot_overlap_oralpcoa1_gutpcoa3.pdf", plot=plot_overlap_oralpcoa1_gutpcoa3, width=4, height=2)
 
 # PCoA2 vs PCoA3
 plot_overlap_oralpcoa2_gutpcoa3 <- ggplot(pcoa_comb, aes(x = PCoA2_oral, y = PCoA3_gut)) +
@@ -250,7 +250,7 @@ plot_overlap_oralpcoa2_gutpcoa3 <- ggplot(pcoa_comb, aes(x = PCoA2_oral, y = PCo
 ## correlation
 cor.test(pcoa_comb$PCoA2_oral, pcoa_comb$PCoA3_gut, alternative = "two.sided", method=c("spearman"))
 
-ggsave(file="figures/plot_overlap_oralpcoa2_gutpcoa3.pdf", plot=plot_overlap_oralpcoa2_gutpcoa3, width=6, height=3)
+# ggsave(file="figures/plot_overlap_oralpcoa2_gutpcoa3.pdf", plot=plot_overlap_oralpcoa2_gutpcoa3, width=6, height=3)
 
 # PCoA3 vs PCoA1
 plot_overlap_oralpcoa3_gutpcoa1 <- ggplot(pcoa_comb, aes(x = PCoA3_oral, y = PCoA1_gut)) +
@@ -267,7 +267,7 @@ plot_overlap_oralpcoa3_gutpcoa1 <- ggplot(pcoa_comb, aes(x = PCoA3_oral, y = PCo
 ## correlation
 cor.test(pcoa_comb$PCoA3_oral, pcoa_comb$PCoA1_gut, alternative = "two.sided", method=c("spearman"))
 
-ggsave(file="figures/plot_overlap_oralpcoa3_gutpcoa1.pdf", plot=plot_overlap_oralpcoa3_gutpcoa1, width=4, height=2)
+# ggsave(file="figures/plot_overlap_oralpcoa3_gutpcoa1.pdf", plot=plot_overlap_oralpcoa3_gutpcoa1, width=4, height=2)
 
 # PCoA3 vs PCoA2
 plot_overlap_oralpcoa3_gutpcoa2 <- ggplot(pcoa_comb, aes(x = PCoA3_oral, y = PCoA2_gut)) +
@@ -284,7 +284,7 @@ plot_overlap_oralpcoa3_gutpcoa2 <- ggplot(pcoa_comb, aes(x = PCoA3_oral, y = PCo
 ## correlation
 cor.test(pcoa_comb$PCoA3_oral, pcoa_comb$PCoA2_gut, alternative = "two.sided", method=c("spearman"))
 
-ggsave(file="figures/plot_overlap_oralpcoa3_gutpcoa2.pdf", plot=plot_overlap_oralpcoa3_gutpcoa2, width=4, height=2)
+# ggsave(file="figures/plot_overlap_oralpcoa3_gutpcoa2.pdf", plot=plot_overlap_oralpcoa3_gutpcoa2, width=4, height=2)
 
 # PCoA3 vs PCoA3
 plot_overlap_oralgut_pcoa3 <- ggplot(pcoa_comb, aes(x = PCoA3_oral, y = PCoA3_gut)) +
@@ -301,7 +301,7 @@ plot_overlap_oralgut_pcoa3 <- ggplot(pcoa_comb, aes(x = PCoA3_oral, y = PCoA3_gu
 #$ correlation
 cor.test(pcoa_comb$PCoA3_oral, pcoa_comb$PCoA3_gut, alternative = "two.sided", method=c("spearman"))
 
-ggsave(file="figures/plot_overlap_oralgut_pcoa3.pdf", plot=plot_overlap_oralgut_pcoa3, width=4, height=2)
+# ggsave(file="figures/plot_overlap_oralgut_pcoa3.pdf", plot=plot_overlap_oralgut_pcoa3, width=4, height=2)
 ```
 
 ## prep gut and oral ASV tables
@@ -457,5 +457,5 @@ overlap_beta <- ggplot(qia_gut_indiv_dist_tab, aes(x = lifestyle, y = distance))
 library(DescTools)
 JonckheereTerpstraTest(distance ~ lifestyle, data = qia_gut_indiv_dist_tab)
 
-ggsave(file="figures/overlap_beta.pdf", plot=overlap_beta, width=6, height=3)
+# ggsave(file="figures/overlap_beta.pdf", plot=overlap_beta, width=6, height=3)
 ```
