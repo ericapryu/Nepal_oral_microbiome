@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # 6. Random Forest
 
-## The purpose of this script is to perform random forest on the Nepali oral microbiome
+The purpose of this script is to perform random forest on the Nepali oral microbiome
 
 ## load packages
 ```{r}
@@ -140,7 +140,7 @@ cm_meta <- ggplot(cm_df, aes(x = True, y = Predicted, fill = Count)) +
   scale_fill_gradient(low="white", high="#009194")+
   labs(x = "True Label",y = "Predicted Label")
 
-# ggsave(file="figures/cm_meta.pdf", plot=cm_meta, width=8, height=6)
+ggsave(file="figures/cm_meta.pdf", plot=cm_meta, width=8, height=6)
 
 ```
 
@@ -200,7 +200,7 @@ cm_mic <- ggplot(cm_mic_df, aes(x = True, y = Predicted, fill = Count)) +
   scale_fill_gradient(low="white", high="#009194", limits=c(0,1))+
   labs(x = "True Label",y = "Predicted Label")
 
-# ggsave(file="figures/cm_mic.pdf", plot=cm_mic, width=8, height=6)
+ggsave(file="figures/cm_mic.pdf", plot=cm_mic, width=8, height=6)
 ```
 
 ## check random chance
@@ -221,4 +221,3 @@ rc_cm_mic <- verify(obs, pred, frcst.type = "cat", obs.type = "cat")
 
 summary(rc_cm_mic)
 ```
-

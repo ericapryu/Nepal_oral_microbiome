@@ -9,9 +9,9 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# 12. PICRUSt2 prep
+# 11. PICRUSt2 prep
 
-## The purpose of this script is to prep microbiome data for PICRUST2 analysis
+The purpose of this script is to prep microbiome data for PICRUST2 analysis
 
 ## load packages
 ```{r}
@@ -54,12 +54,12 @@ colnames(seq_map) <- c("label", "sequence")
 seq_tab_qiagen_biom <- make_biom(seq_tab_qiagen_t)
 
 # write biome file to local desktop
-# write_biom(seq_tab_qiagen_biom, biom_file = "output/picrust_seq_tab_qiagen.biom")
+write_biom(seq_tab_qiagen_biom, biom_file = "output/picrust_seq_tab_qiagen.biom")
 # 
 # # write sequences to local desktop
-# write.table(seqs_qiagen, file="output/picrust_seq_qiagen.txt", quote=FALSE)
+write.table(seqs_qiagen, file="output/picrust_seq_qiagen.txt", quote=FALSE)
 # 
 # # write map to local desktop
-# write.csv(seq_map, file="output/picrust_seq_qiagen_map.csv", quote=FALSE)
+write.csv(seq_map, file="output/picrust_seq_qiagen_map.csv", quote=FALSE)
 ```
 

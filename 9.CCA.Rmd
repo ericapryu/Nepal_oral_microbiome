@@ -11,9 +11,9 @@ output:
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# 10. CCA
+# 9. CCA
 
-## The purpose of this script is to conduct canonical correspondence analysis (CCA) to identify which specific lifestyle factors are associated with the microbiome
+The purpose of this script is to conduct canonical correspondence analysis (CCA) to identify which specific lifestyle factors are associated with the microbiome
 
 ## load packages
 ```{r}
@@ -149,8 +149,8 @@ row_max <- 1/(nrow(df_CA_final)-1)
 dim1_contrib <- fviz_contrib(ca_res, choice = "col", axes = 1, top = 10)
 dim2_contrib <- fviz_contrib(ca_res, choice = "col", axes = 2, top = 10)
 
-# ggsave(file="figures/dim1_contrib_small.pdf", plot=dim1_contrib, width=4, height=2)
-# ggsave(file="figures/dim2_contrib_small.pdf", plot=dim2_contrib, width=4, height=2)
+ggsave(file="figures/dim1_contrib_small.pdf", plot=dim1_contrib, width=4, height=2)
+ggsave(file="figures/dim2_contrib_small.pdf", plot=dim2_contrib, width=4, height=2)
 ```
 
 ## plot CA
@@ -198,7 +198,7 @@ CA_plot <- ggplot(row_axes, aes(x = Dim1, y = Dim2)) +
        x = "CA1 (15.88%)",
        y = "CA2 (12.97%)")
 
-# ggsave(file="figures/ca_plot.pdf", plot=CA_plot, width=8, height=6)
+ggsave(file="figures/ca_plot.pdf", plot=CA_plot, width=8, height=6)
 # shape legend (metadata) added in illustrator
 ```
 
@@ -218,7 +218,7 @@ ca1_axes <- ggplot(row_axes, aes(x = lifestyle, y = as.numeric(Dim1), group = li
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-# ggsave(file="figures/ca1_axes.pdf", plot=ca1_axes, width=4, height=3)
+ggsave(file="figures/ca1_axes.pdf", plot=ca1_axes, width=4, height=3)
 
 ca2_axes <- ggplot(row_axes, aes(x = lifestyle, y = as.numeric(Dim2), group = lifestyle), color = black) +
   geom_violin(alpha = 0.8, aes(fill=lifestyle)) +
@@ -233,7 +233,7 @@ ca2_axes <- ggplot(row_axes, aes(x = lifestyle, y = as.numeric(Dim2), group = li
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-# ggsave(file="figures/ca2_axes.pdf", plot=ca2_axes, width=4, height=3)
+ggsave(file="figures/ca2_axes.pdf", plot=ca2_axes, width=4, height=3)
 ```
 
 ## assess if CA axes are correlated with PCoA axes
@@ -275,7 +275,7 @@ pcoa1_ca1 <- ggplot(pcoa_ca , aes(x = PCoA1, y = CA1)) +
        x = "PCoA1",
        y = "CA1")
 
-# ggsave(file="figures/pcoa1_ca1_small.pdf", plot=pcoa1_ca1, width=4, height=2)
+ggsave(file="figures/pcoa1_ca1_small.pdf", plot=pcoa1_ca1, width=4, height=2)
 
 # correlation
 cor.test(pcoa_ca$PCoA1, pcoa_ca$CA1, alternative = "two.sided", method=c("spearman"))
@@ -293,7 +293,7 @@ pcoa2_ca2 <- ggplot(pcoa_ca , aes(x = PCoA2, y = CA2*-1)) +
        x = "PCoA2",
        y = "CA2")
 
-# ggsave(file="figures/pcoa2_ca2_small.pdf", plot=pcoa2_ca2, width=4, height=2)
+ggsave(file="figures/pcoa2_ca2_small.pdf", plot=pcoa2_ca2, width=4, height=2)
 
 # correlation
 cor.test(pcoa_ca$PCoA2, pcoa_ca$CA2, alternative = "two.sided", method=c("spearman"))
@@ -314,7 +314,7 @@ pcoa3_ca3 <- ggplot(pcoa_ca , aes(x = PCoA3, y = CA3*-1)) +
 # correlation
 cor.test(pcoa_ca$PCoA3, pcoa_ca$CA3, alternative = "two.sided", method=c("spearman"))
 
-# ggsave(file="figures/pcoa3_ca3_small.pdf", plot=pcoa3_ca3, width=4, height=2)
+ggsave(file="figures/pcoa3_ca3_small.pdf", plot=pcoa3_ca3, width=4, height=2)
 
 ## CA1 vs PCoA2
 pcoa2_ca1 <- ggplot(pcoa_ca , aes(x = PCoA2, y = CA1)) +
@@ -331,7 +331,7 @@ pcoa2_ca1 <- ggplot(pcoa_ca , aes(x = PCoA2, y = CA1)) +
 # correlation
 cor.test(pcoa_ca$PCoA2, pcoa_ca$CA1, alternative = "two.sided", method=c("spearman"))
 
-# ggsave(file="figures/pcoa2_ca1_small.pdf", plot=pcoa2_ca1, width=4, height=2)
+ggsave(file="figures/pcoa2_ca1_small.pdf", plot=pcoa2_ca1, width=4, height=2)
 
 ## CA2 vs PCoA1
 pcoa1_ca2 <- ggplot(pcoa_ca , aes(x = PCoA1, y = CA2)) +
@@ -348,7 +348,7 @@ pcoa1_ca2 <- ggplot(pcoa_ca , aes(x = PCoA1, y = CA2)) +
 # correlation
 cor.test(pcoa_ca$PCoA1, pcoa_ca$CA2, alternative = "two.sided", method=c("spearman"))
 
-# ggsave(file="figures/pcoa1_ca2_small.pdf", plot=pcoa1_ca2, width=4, height=2)
+ggsave(file="figures/pcoa1_ca2_small.pdf", plot=pcoa1_ca2, width=4, height=2)
 ```
 
 ## CA axes vs alpha diversity
@@ -387,7 +387,7 @@ shannon_ca1 <- ggplot(shannon_CA_comb, aes(x = mean, y = CA1)) +
        x = "Shannon Alpha",
        y = "CA1")
 
-# ggsave(file="figures/shannon_ca1_small.pdf", plot=shannon_ca1, width=4, height=2)
+ggsave(file="figures/shannon_ca1_small.pdf", plot=shannon_ca1, width=4, height=2)
 
 # correlation
 cor.test(shannon_CA_comb$mean, shannon_CA_comb$CA1, alternative = "two.sided", method=c("spearman"))
@@ -405,7 +405,7 @@ shannon_ca2 <- ggplot(shannon_CA_comb, aes(x = mean, y = CA2)) +
        x = "Shannon Alpha",
        y = "CA2")
 
-# ggsave(file="figures/shannon_ca2_small.pdf", plot=shannon_ca2, width=4, height=2)
+ggsave(file="figures/shannon_ca2_small.pdf", plot=shannon_ca2, width=4, height=2)
 
 # correlation
 cor.test(shannon_CA_comb$mean, shannon_CA_comb$CA2, alternative = "two.sided", method=c("spearman"))
@@ -423,7 +423,7 @@ faiths_ca1 <- ggplot(faiths_CA_comb, aes(x = mean, y = CA1)) +
        x = "Faiths Alpha",
        y = "CA1")
 
-# ggsave(file="figures/faiths_ca1_small.pdf", plot=faiths_ca1, width=4, height=2)
+ggsave(file="figures/faiths_ca1_small.pdf", plot=faiths_ca1, width=4, height=2)
 
 # correlation
 cor.test(faiths_CA_comb$mean, faiths_CA_comb$CA1, alternative = "two.sided", method=c("spearman"))
@@ -441,7 +441,7 @@ faiths_ca2 <- ggplot(faiths_CA_comb, aes(x = mean, y = CA2)) +
        x = "Faiths Alpha",
        y = "CA2")
 
-# ggsave(file="figures/faiths_ca2_small.pdf", plot=faiths_ca2, width=4, height=2)
+ggsave(file="figures/faiths_ca2_small.pdf", plot=faiths_ca2, width=4, height=2)
 
 # correlation
 cor.test(faiths_CA_comb$mean, faiths_CA_comb$CA2, alternative = "two.sided", method=c("spearman"))
@@ -579,7 +579,7 @@ CCA_sig_plot <- ggplot(data=df_sites)+
   labs(x=paste0("CCA1 (",cca1_varex," %)"),
        y=paste0("CCA2 (",cca2_varex," %)"))
 
-# ggsave(file="figures/CCA.pdf", plot=CCA_sig_plot, width=5, height=4)
+ggsave(file="figures/CCA.pdf", plot=CCA_sig_plot, width=5, height=4)
 ```
 
 # check to see if CA axes follow the lifestyle trend

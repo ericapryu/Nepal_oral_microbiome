@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # 3. Quality control
 
-## The purpose of this script is to perform QC and clean the reads.
+The purpose of this script is to perform QC and clean the reads.
 
 ## load packages
 ```{r}
@@ -65,7 +65,7 @@ phyloseq_prune <- phyloseq.noncontam_all %>%
 phyloseq_prunetaxa <- filter_taxa(phyloseq_prune, function(x) sum(x > 5) >= 2, TRUE)
 
 ## save phyloseq object 
-# saveRDS(phyloseq_prunetaxa, "output/ps_noncontam_pruned.rds")
+saveRDS(phyloseq_prunetaxa, "output/ps_noncontam_pruned.rds")
 ```
 
 ## examine read depth across all samples
@@ -91,7 +91,7 @@ plot_genotek_reads <- ggplot(genotek_reads, aes(x= reorder(SampleID, TotalReads)
   ylim(0,95000)+
   theme(axis.text.x = element_blank())
 
-# ggsave(file = "figures/genotek_reads.pdf", width = 6, height = 3, plot = plot_genotek_reads)
+ggsave(file = "figures/genotek_reads.pdf", width = 6, height = 3, plot = plot_genotek_reads)
 
 plot_psoil_reads <- ggplot(psoil_reads, aes(x= reorder(SampleID, TotalReads), y=TotalReads, fill=Lifestyle)) +
   geom_bar(stat = "identity") +
@@ -106,13 +106,13 @@ plot_psoil_reads <- ggplot(psoil_reads, aes(x= reorder(SampleID, TotalReads), y=
     ylim(0,95000)+
   theme(axis.text.x = element_blank())
 
-# ggsave(file = "figures/psoil_reads.pdf", width = 6, height = 3, plot = plot_psoil_reads)
+ggsave(file = "figures/psoil_reads.pdf", width = 6, height = 3, plot = plot_psoil_reads)
 
 # throw out the samples that are below 26923 reads based on read depth
 phyloseq_prunetaxa <- subset_samples(phyloseq_prunetaxa, !SampleID=="NEW0104_genotek")
 
 ## save object again
-# saveRDS(phyloseq_prunetaxa, "output/ps_noncontam_pruned.rds")
+saveRDS(phyloseq_prunetaxa, "output/ps_noncontam_pruned.rds")
 ```
 
 ## generate rooted tree for any unifrac or phylogenetic distances
@@ -209,7 +209,7 @@ rarefy <- ggplot(
   scales = 'free_y'
 )
 
-# ggsave(file = "figures/rarefy.pdf", plot = rarefy, width=8, height=6)
+ggsave(file = "figures/rarefy.pdf", plot = rarefy, width=8, height=6)
 
 # function for calculating alpha diversity
 set.seed(100)
@@ -301,7 +301,7 @@ set.seed(100)
  } 
  
 # calculate alpha diversity - include number of trials, number of sequences to subsample
-rfxn <- compute_alphadiv(phyloseq_prunetaxa,1000,26923) # this might take a couple hours to run
+rfxn <- compute_alphadiv(phyloseq_prunetaxa_keep,1000,26923) # this might take a couple hours to run
 ```
 
 ## check individuals currently taking antibiotics
@@ -327,7 +327,7 @@ qiagen_antibio_plot <- ggplot(qiagen_rfxn_antibio, aes(x = ANTIBIO_curr, y = mea
   labs(title = "Qiagen kit") +
   theme(legend.position = "none") + xlab("")
 
-# ggsave(file = "figures/qiagen_antibio_plot.pdf", plot = qiagen_antibio_plot, width = 4, height = 9)
+ggsave(file = "figures/qiagen_antibio_plot.pdf", plot = qiagen_antibio_plot, width = 4, height = 9)
 
 psoil_antibio_plot <- ggplot(psoil_rfxn_antibio, aes(x = ANTIBIO_curr, y = mean, group = ANTIBIO_curr), color = black) +
   geom_boxplot(width=0.1, color="black", alpha=0.2) +
@@ -337,7 +337,7 @@ psoil_antibio_plot <- ggplot(psoil_rfxn_antibio, aes(x = ANTIBIO_curr, y = mean,
   labs(title = "PowerSoil kit") +
   theme(legend.position = "none") + xlab("")
 
-# ggsave(file = "figures/psoil_antibio_plot.pdf", plot = psoil_antibio_plot, width = 4, height = 9)
+ggsave(file = "figures/psoil_antibio_plot.pdf", plot = psoil_antibio_plot, width = 4, height = 9)
 
 # kruskal wallis for significance
 shannon_qiagen_antibio <- subset(qiagen_rfxn_antibio, measure == "Shannon")
@@ -363,8 +363,8 @@ rfxn <- rfxn[!grepl("A", rfxn$ANTIBIO),]
 
 ## save all objects
 ```{r}
-# saveRDS(phyloseq_complete, "output/ps_complete.rds")
-# write.csv(rfxn, file = "output/rarefaction_edit03292024_final.csv")
+saveRDS(phyloseq_complete, "output/ps_complete.rds")
+write.csv(rfxn, file = "output/rarefaction_edit03292024_final.csv")
 ```
 
 ## how many samples per lifestyle/population left after QC?
@@ -439,8 +439,7 @@ qiagen_sample_count <- ggplot(comb_qiagen, aes(fill=state, x=lifestyle, y=count)
   geom_text(aes(label=count), position=position_dodge(width=0.9), vjust=-0.25) +
   labs(title = "Qiagen kit")
 
-# ggsave(file = "figures/qiagen_sample_count.pdf", width = 7, height = 4, plot = qiagen_sample_count)
-
+ggsave(file = "figures/qiagen_sample_count.pdf", width = 7, height = 4, plot = qiagen_sample_count)
 
 psoil_sample_count <- ggplot(comb_psoil, aes(fill=state, x=lifestyle, y=count)) + 
   geom_bar(position="dodge", stat="identity", color = "black") +
@@ -451,5 +450,5 @@ psoil_sample_count <- ggplot(comb_psoil, aes(fill=state, x=lifestyle, y=count)) 
   geom_text(aes(label=count), position=position_dodge(width=0.9), vjust=-0.25) +
   labs(title = "PowerSoil kit")
 
-# ggsave(file = "figures/psoil_sample_count.pdf", width = 7, height = 4, plot = psoil_sample_count)
+ggsave(file = "figures/psoil_sample_count.pdf", width = 7, height = 4, plot = psoil_sample_count)
 ```

@@ -1,6 +1,7 @@
 #!/bin/bash 
 
 # The purpose of this script is to run the stratified module of picrust on the qiagen samples - takes a few hours total, especially the pathway abundance inference step
+# Note: this script assumes that the output of script #11 and any KEGG files are in your current directory. All KEGG files are not provided as they are not publicly accessible.
 
 #SBATCH --time=12:00:00  
 #SBATCH --nodes=2
@@ -11,7 +12,6 @@
 d1=$(date +%s) 
 
 RUN_PATH="/storage/group/exd44/default/epr5208/Himalayan_oral_microbiome/picrust2"
-
 BIOM="picrust_seq_tab_qiagen"
 SEQ="picrust_seq_qiagen"
 OUT_DIR="picrust2_qiagen_output"

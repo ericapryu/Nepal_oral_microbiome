@@ -9,9 +9,9 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# 11. Taxa vs lifestyle
+# 10. Taxa vs lifestyle
 
-## The purpose is to identify associations between specific lifestyle factors and the DA taxa identified from the trend test. 
+The purpose is to identify associations between specific lifestyle factors and the DA taxa identified from the trend test. 
 
 ## load packages
 ```{r}
@@ -82,7 +82,6 @@ otu_tax <- as.data.frame(otu_tax_wo_euro)
 
 # add rownames
 rownames(otu_tax) <- rownames(otu_tax_wo_euro)
-
 ```
 
 ## subset to DA taxa
@@ -300,7 +299,7 @@ lifestylevtaxaBH$brachy_BHadj_p_value <- p.adjust(lifestylevtaxaBH$brachymonas, 
 # atopo
 lifestylevtaxaBH$atopo_BHadj_p_value <- p.adjust(lifestylevtaxaBH$atopobium, method = "BH", n = length(lifestylevtaxaBH$atopobium))
 
-# write.csv(lifestylevtaxaBH, file = "output/lifestylevtaxaBH.csv")
+write.csv(lifestylevtaxaBH, file = "output/lifestylevtaxaBH.csv")
 ```
 
 ## individual microbes vs lifestyle factors
@@ -334,7 +333,7 @@ plot_brachy_grain <- ggplot(relabund_otu_tax_grain, aes(x = grain, y = Brachymon
   theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-# ggsave(file="figures/plot_brachy_grain.pdf", plot=plot_brachy_grain, width=3, height=4)
+ggsave(file="figures/plot_brachy_grain.pdf", plot=plot_brachy_grain, width=3, height=4)
 
 # smoking - add lifestyle info and plot
 relabund_otu_tax_smok <- relabund_otu_tax
@@ -367,7 +366,7 @@ plot_smok <- ggplot(smok_taxa, aes(x = smoking, y = Rel_abund, group = smoking),
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
   theme(legend.position = "none")
 
-# ggsave(file="figures/plot_smok.pdf", plot=plot_smok, width=6, height=4)
+ggsave(file="figures/plot_smok.pdf", plot=plot_smok, width=6, height=4)
 
 # sisnu
 # subset
@@ -399,8 +398,7 @@ plot_sisnu <- ggplot(sisnu_taxa, aes(x = Sisnu, y = Rel_abund, group = Sisnu), c
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
   theme(legend.position = "none")
 
-# ggsave(file="figures/plot_sisnu.pdf", plot=plot_sisnu, width=6, height=4)
-
+ggsave(file="figures/plot_sisnu.pdf", plot=plot_sisnu, width=6, height=4)
 ```
 
 ## heatmap of lifestyle v taxa
@@ -415,9 +413,8 @@ lifestylevtaxa_hm <- subset(lifestylevtaxa_hm, select = -c(lifestyle))
 lifestylevtaxa_hm <- as.matrix(lifestylevtaxa_hm)
 
 # plot and save
-
-# hm_plot <- heatmaply(lifestylevtaxa_hm,
-#           colors = heatmap_col, file = "figures/hm_plot.pdf", width = 700, height = 800, text_angle = 15)
+hm_plot <- heatmaply(lifestylevtaxa_hm,
+          colors = heatmap_col, file = "figures/hm_plot.pdf", width = 700, height = 800, text_angle = 15)
 
 # NOTE: if heatmaply fails to save the heatmap, either run webshot::install_phantomjs() or install orca at https://github.com/plotly/orca#installation
 ```

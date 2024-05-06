@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # 5. Microbiome Characterization
 
-## The purpose of this script is to examine standard microbiome characteristics (alpha and beta diversity)
+The purpose of this script is to examine standard microbiome characteristics (alpha and beta diversity)
 
 ## load packages
 ```{r}
@@ -83,17 +83,14 @@ rfxn_micro$Lifestyle <- factor(rfxn_micro$Lifestyle, ordered = TRUE, levels=c("F
 qiagen_rfxn <- subset(rfxn_micro, Condition == "Qiagen")
 psoil_rfxn <- subset(rfxn_micro, Condition == "Psoil")
 
-# old_rfxn$Lifestyle <- factor(old_rfxn$Lifestyle, ordered = TRUE, levels=c("Foragers", "RecentlySettled", "Agriculturalists", "Expats", "Industrial", "control"))
-#
-# qiagen_rfxn <- subset(old_rfxn, Condition == "Qiagen")
-# psoil_rfxn <- subset(old_rfxn, Condition == "Psoil")
-
+# fix names
 qiagen_rfxn$Lifestyle <- gsub("RecentlySettled", "Recently Settled", qiagen_rfxn$Lifestyle)
 psoil_rfxn$Lifestyle <- gsub("RecentlySettled", "Recently Settled", psoil_rfxn$Lifestyle)
 
 qiagen_rfxn$Lifestyle <- gsub("Industrial", "American Industrial", qiagen_rfxn$Lifestyle)
 psoil_rfxn$Lifestyle <- gsub("Industrial", "American Industrial", psoil_rfxn$Lifestyle)
 
+# filter by alpha diversity measure
 shannon_qiagen <- subset(qiagen_rfxn, measure == "Shannon")
 shannon_psoil <- subset(psoil_rfxn, measure == "Shannon")
 
@@ -124,7 +121,7 @@ qiagen_alpha <- ggplot(qiagen_rfxn, aes(x = Lifestyle, y = mean, group = Lifesty
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
   theme(legend.position = "none") + xlab("")
 
-# ggsave(file = "figures/qiagen_alpha.pdf", width = 6, height = 8, plot = qiagen_alpha)
+ggsave(file = "figures/qiagen_alpha.pdf", width = 6, height = 8, plot = qiagen_alpha)
 
 # subset to specific metrics for visualization
 qiagen_alpha_plot <- subset(qiagen_rfxn, measure == "Shannon" | measure == "Faiths")
@@ -143,7 +140,7 @@ qiagen_alpha_plot_obj <- ggplot(qiagen_alpha_plot, aes(x = Lifestyle, y = mean, 
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
   theme(legend.position = "none") + xlab("")
 
-# ggsave(file = "figures/qiagen_alpha_plot_obj.pdf", width = 6, height = 4, plot = qiagen_alpha_plot_obj)
+ggsave(file = "figures/qiagen_alpha_plot_obj.pdf", width = 6, height = 4, plot = qiagen_alpha_plot_obj)
 
 psoil_alpha <- ggplot(psoil_rfxn, aes(x = Lifestyle, y = mean, group = Lifestyle), color = black) +
   geom_violin(aes(fill=Lifestyle), alpha=0.8) +
@@ -158,7 +155,7 @@ psoil_alpha <- ggplot(psoil_rfxn, aes(x = Lifestyle, y = mean, group = Lifestyle
   theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
   theme(legend.position = "none") + xlab("")
 
-# ggsave(file = "figures/psoil_alpha.pdf", width = 6, height = 7, plot = psoil_alpha)
+ggsave(file = "figures/psoil_alpha.pdf", width = 6, height = 7, plot = psoil_alpha)
 
 ## calculate significance
 # KW - qiagen
@@ -230,7 +227,7 @@ bray <- ggplot(bray_plot, aes(x = as.numeric(Axis.1), y = as.numeric(Axis.2))) +
   labs(x = "PCoA1 (28.62%)",
        y = "PCoA2 (14.99%)")
 
-# ggsave(file = "figures/bray_small.pdf", plot = bray, width = 6, height = 3)
+ggsave(file = "figures/bray_small.pdf", plot = bray, width = 6, height = 3)
 
 # permanova
 set.seed(105)
@@ -272,8 +269,8 @@ bray_pcoa2 <- ggplot(bray_plot, aes(x = lifestyle, y = as.numeric(Axis.2), group
 
 # trend test for axis 2
 JonckheereTerpstraTest(as.numeric(Axis.2) ~ lifestyle, data = bray_plot)
-# ggsave(file = "figures/bray_pcoa1_small.pdf", plot = bray_pcoa1, width = 6, height = 3)
-# ggsave(file = "figures/bray_pcoa2_small.pdf", plot = bray_pcoa2, width = 6, height = 3)
+ggsave(file = "figures/bray_pcoa1_small.pdf", plot = bray_pcoa1, width = 6, height = 3)
+ggsave(file = "figures/bray_pcoa2_small.pdf", plot = bray_pcoa2, width = 6, height = 3)
 
 ## all powersoil metrics
 bray_ordinate_psoil <- beta_ordinate(psoil)
@@ -290,7 +287,7 @@ bray_psoil <- ggplot(bray_plot_psoil, aes(x = as.numeric(Axis.1), y = as.numeric
   labs(x = "PCoA1 (25.99%)",
        y = "PCoA2 (13.83%)")
 
-# ggsave(file = "figures/bray_psoil_small.pdf", plot = bray_psoil, width = 6, height = 3)
+ggsave(file = "figures/bray_psoil_small.pdf", plot = bray_psoil, width = 6, height = 3)
 
 bray_perm_psoil <- permanova(psoil)
 
@@ -307,7 +304,7 @@ bray_pcoa1_psoil <- ggplot(bray_plot_psoil, aes(x = lifestyle, y = as.numeric(Ax
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-# ggsave(file = "figures/bray_pcoa1_psoil_small.pdf", plot = bray_pcoa1_psoil, width = 4, height = 3)
+ggsave(file = "figures/bray_pcoa1_psoil_small.pdf", plot = bray_pcoa1_psoil, width = 4, height = 3)
 
 # trend test for axis 1
 JonckheereTerpstraTest(as.numeric(Axis.1) ~ lifestyle, data = bray_plot_psoil)
@@ -325,7 +322,7 @@ bray_pcoa2_psoil <- ggplot(bray_plot_psoil, aes(x = lifestyle, y = as.numeric(Ax
   theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
   theme(legend.position = "none")
 
-# ggsave(file = "figures/bray_pcoa2_psoil_small.pdf", plot = bray_pcoa2_psoil, width = 4, height = 3)
+ggsave(file = "figures/bray_pcoa2_psoil_small.pdf", plot = bray_pcoa2_psoil, width = 4, height = 3)
 
 # trend test for axis 2
 JonckheereTerpstraTest(as.numeric(Axis.2) ~ lifestyle, data = bray_plot_psoil)

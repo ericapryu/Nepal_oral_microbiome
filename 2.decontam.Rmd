@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # 2. Remove contaminants via decontam
 
-## The purpose of this script is to remove contaminants via decontam using both the frequency and prevalance methods
+The purpose of this script is to remove contaminants via decontam using both the frequency and prevalance methods
 
 ## load packages
 ```{r}
@@ -60,10 +60,10 @@ table(contamdf.freq$contaminant)
 head(which(contamdf.freq$contaminant))
 
 # plot contaminant ASV vs noncontaminant and save as pdf
-# pdf("output/freq_plot.pdf")
-# plot_frequency(phyloseq_BDNA, taxa_names(phyloseq_BDNA)[c(2,865)], conc="BDNA") + 
-#   xlab("DNA Concentration")
-# dev.off() 
+pdf("output/freq_plot.pdf")
+plot_frequency(phyloseq_BDNA, taxa_names(phyloseq_BDNA)[c(2,865)], conc="BDNA") +
+  xlab("DNA Concentration")
+dev.off()
 ```
 
 ## remove frequency contaminant taxa from phyloseq object
@@ -104,7 +104,7 @@ ggplot(data=df.pa, aes(x=pa.neg, y=pa.pos, color=contaminant)) + geom_point() +
 phyloseq.noncontam_all <- prune_taxa(!contamdf.prev$contaminant, phyloseq.noncontam)
 
 ## save phyloseq object with contaminants removed
-# saveRDS(phyloseq.noncontam_all, "output/ps_noncontam.rds")
+saveRDS(phyloseq.noncontam_all, "output/ps_noncontam.rds")
 ```
 
 ## examine which taxa are getting removed

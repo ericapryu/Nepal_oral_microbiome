@@ -11,7 +11,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 # 4. Extraction Comparison
 
-## The purpose of this script is to compare the extraction kits
+The purpose of this script is to compare the extraction kits
 
 ## load packages
 ```{r}
@@ -97,7 +97,7 @@ pcoa_qvp_1 <- ggplot(pcoa.vec, aes(x=Axis.1_qiagen, y=Axis.1_psoil, color = life
   labs(x="Axis 1 Qiagen",
        y="Axis 1 Psoil")
 
-# ggsave(file = "figures/pcoa_qvp_1.pdf", width = 5, height = 3, plot = pcoa_qvp_1)
+ggsave(file = "figures/pcoa_qvp_1.pdf", width = 5, height = 3, plot = pcoa_qvp_1)
 
 pcoa_qvp_2 <- ggplot(pcoa.vec, aes(x=Axis.2_qiagen, y=Axis.2_psoil, color=lifestyle)) +
   geom_point(size=2) +
@@ -109,8 +109,7 @@ pcoa_qvp_2 <- ggplot(pcoa.vec, aes(x=Axis.2_qiagen, y=Axis.2_psoil, color=lifest
   labs(x="Axis 2 Qiagen",
        y="Axis 2 Psoil")
 
-# ggsave(file = "figures/pcoa_qvp_2.pdf", width = 5, height = 3, plot = pcoa_qvp_2)
-
+ggsave(file = "figures/pcoa_qvp_2.pdf", width = 5, height = 3, plot = pcoa_qvp_2)
 ```
 
 ## PERMANOVA between kits
@@ -144,7 +143,7 @@ extraction_comb <- ggplot(pcoa.vec_plot) +
        y="Axis 2")
 ## note that the key for extraction kit was added via Illustrator and is not included in this version of the plot
 
-# ggsave(file = "figures/extraction_comb.pdf", width = 6, height = 4, plot = extraction_comb)
+ggsave(file = "figures/extraction_comb.pdf", width = 6, height = 4, plot = extraction_comb)
 ```
 
 ## calculate correlations between axes

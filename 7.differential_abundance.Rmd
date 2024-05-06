@@ -9,9 +9,9 @@ output: pdf_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-# 8. Differential abundance
+# 7. Differential abundance
 
-## The purpose of this script is to conduct difference abundance analysis with ALDEx2.
+The purpose of this script is to conduct difference abundance analysis with ALDEx2.
 
 ## load packages
 ```{r}
@@ -43,7 +43,7 @@ fivecolors <- c("darkslateblue", "deepskyblue", "lightblue3", "lightsalmon" , "f
 
 ## prep taxa table for ALDEx2
 ```{r}
-phy_genus <-  tax_glom(qiagen, "Genus", NArm = FALSE);phy_genus
+phy_genus <-  tax_glom(qiagen, "Phylum", NArm = FALSE)
 otu_table <- as.data.frame(as.matrix(phy_genus@otu_table))
 
 setDT(otu_table, keep.rownames = TRUE)[]
@@ -91,7 +91,6 @@ transform_kw <- aldex.clr(otu_tax, conds, mc.samples=1000, denom="all")
 
 # generate model
 model_kw <- aldex.kw(transform_kw)
-
 ```
 
 ## prep gut microbiome taxa table
@@ -157,6 +156,6 @@ model_kw_gut_filt <- model_kw_gut[model_kw_gut$kw.eBH < 0.05,]
 
 ## save ALDEx2 results
 ```{r}
-# write.csv(model_kw, file = "output/model_kw.csv")
-# write.csv(model_kw_gut, file = "output/model_kw_gut.csv")
+write.csv(model_kw, file = "output/model_kw.csv")
+write.csv(model_kw_gut, file = "output/model_kw_gut.csv")
 ```

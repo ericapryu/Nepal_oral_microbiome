@@ -42,9 +42,9 @@ if(!file_test("-d", filt_path)) dir.create(filt_path)
 filtFwd <- file.path(filt_path, basename(fileFwd))
 
 for(i in seq_along(fileFwd)) {
-  fastqFilter(c(fileFwd[[i]]),c(filtFwd[[i]]),trimLeft=10, truncLen=c(150),maxN=0, maxEE=2, truncQ=2,compress=TRUE)
+  fastqFilter(c(fileFwd[[i]]),c(filtFwd[[i]]),trimLeft=10, truncLen=c(150), maxN=0, maxEE=2, truncQ=2,compress=TRUE)
 }
-## justify choices
+## Reads were truncated to remove adapters and low quality bases. All other parameters were kept default.
 ```
 
 ## infer sequence variants
@@ -147,7 +147,7 @@ head(track)
 track$retained_overall <- track$nochim / track$input
 
 # save read track table
-# write.csv(track, file = "output/track_reads.csv")
+write.csv(track, file = "output/track_reads.csv")
 ```
 
 ## assign taxonomy
@@ -206,6 +206,6 @@ ps <- phyloseq(tax_table(taxtab),
 ps
 
 # save phyloseq object
-# saveRDS(ps, "output/oralmicrobiome_ps.rds")
+saveRDS(ps, "output/oralmicrobiome_ps.rds")
 ```
 
