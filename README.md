@@ -3,7 +3,7 @@ This repository contains all scripts used to analyze the Nepali oral microbiome.
 
 #### Note: all scripts assume that the working directory is set to a directory called "Nepal_oral_microbiome". Within "Nepal_oral_microbiome", there are directories called "data","output", and "figures". Within "data", there are directories called "fwd" and "filt_path". Data is stored in the "fwd" directory, while "filt_path" is empty.
 
-# All package info is in the R script "package_info.R"
+All package info is in the R script "package_info.R"
 
 ## Table of contents
 1. oral_phyloseq - clean 16S sequence data and generate phyloseq object
