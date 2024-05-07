@@ -1,7 +1,7 @@
 # Nepali oral microbiomes follow a gradient of lifestyles from traditional to industrialized
 This repository contains all scripts used to generate the results for "Nepali oral microbiomes follow a gradient of lifestyles from traditional to industrialized." All analyses start in the same base directory. All analyses are conducted in R, unless otherwise specified. 
 
-#### Note: all scripts assume that the working directory is set to a directory called `Nepal_oral_microbiome\`. Within `Nepal_oral_microbiome\`, there are sub-directories called `data\`, `output\`, and `figures\`. Within `data\`, there are directories called `fwd\` and `filt_path\`. Data is stored in the `fwd\` directory, while `filt_path\` is empty.
+Note: all scripts assume that the working directory is set to a directory called `Nepal_oral_microbiome\`. Within `Nepal_oral_microbiome\`, there are sub-directories called `data\`, `output\`, and `figures\`. Within `data\`, there are directories called `fwd\` and `filt_path\`. Data is stored in the `fwd\` directory, while `filt_path\` is empty. Note that data files are not included in the repo due to size but are included as supplemental tables in the publication or on SRA under BioProject PRJNA1098228.
 
 ```
 Nepal_oral_microbiome
