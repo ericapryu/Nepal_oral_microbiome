@@ -3,6 +3,20 @@ This repository contains all scripts used to generate the results for "Nepali or
 
 #### Note: all scripts assume that the working directory is set to a directory called `Nepal_oral_microbiome\`. Within `Nepal_oral_microbiome\`, there are sub-directories called `data\`, `output\`, and `figures\`. Within `data\`, there are directories called `fwd\` and `filt_path\`. Data is stored in the `fwd\` directory, while `filt_path\` is empty.
 
+```
+Nepal_oral_microbiome
+|- README		# Description of analysis scripts
+|
+|- data/		# Any data put into analyses - may be raw or processed (note: not version controlled currently due to size)
+|    |- fwd		          
+|    |- filt_path	        
+|
+|- output/		# Will contain output from scripts after they are run
+|
+|- figures/		# Will contain figures generated from scripts after they are run
++
+```
+
 All package info is in the R script `package_info.R`
 
 ## Table of contents
