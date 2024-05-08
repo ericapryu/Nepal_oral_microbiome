@@ -10,7 +10,7 @@ Nepal_oral_microbiome
 |- data/		# Any data put into analyses - may be raw or processed (note: not version controlled currently due to size)
 |    |- fwd/		          
 |    |- filt_path/
-|    |- "oralmicrobiome_surveydata.csv"
+|    |- oralmicrobiome_surveydata.csv
 |
 |- output/		# Will contain output from scripts after they are run
 |
