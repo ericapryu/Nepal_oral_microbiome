@@ -8,8 +8,9 @@ Nepal_oral_microbiome
 |- README		# Description of analysis scripts
 |
 |- data/		# Any data put into analyses - may be raw or processed (note: not version controlled currently due to size)
-|    |- fwd		          
-|    |- filt_path	        
+|    |- fwd/		          
+|    |- filt_path/
+|    |- "oralmicrobiome_surveydata.csv"
 |
 |- output/		# Will contain output from scripts after they are run
 |
