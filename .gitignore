@@ -1,5 +1,6 @@
 # ignore everything
 /*
+data/*
 
 # except
 !.gitignore
@@ -7,3 +8,5 @@
 !*.md
 !*.sh
 !*.R
+!data/
+!data/oralmicrobiome_surveydata.csv

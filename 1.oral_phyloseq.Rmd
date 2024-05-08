@@ -180,7 +180,7 @@ detach("package:phangorn", unload=TRUE)
 ## construct phyloseq object
 ```{r}
 # load in metadata
-map<-read.csv("data/s1_tab_surveydata.csv")
+map<-read.csv("data/oralmicrobiome_surveydata.csv")
 
 head(map)
 map<-data.frame(map)
