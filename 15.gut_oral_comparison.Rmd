@@ -250,7 +250,7 @@ plot_overlap_oralpcoa2_gutpcoa3 <- ggplot(pcoa_comb, aes(x = PCoA2_oral, y = PCo
 ## correlation
 cor.test(pcoa_comb$PCoA2_oral, pcoa_comb$PCoA3_gut, alternative = "two.sided", method=c("spearman"))
 
-ggsave(file="figures/plot_overlap_oralpcoa2_gutpcoa3.pdf", plot=plot_overlap_oralpcoa2_gutpcoa3, width=6, height=3)
+ggsave(file="figures/plot_overlap_oralpcoa2_gutpcoa3.pdf", plot=plot_overlap_oralpcoa2_gutpcoa3, width=4, height=2)
 
 # PCoA3 vs PCoA1
 plot_overlap_oralpcoa3_gutpcoa1 <- ggplot(pcoa_comb, aes(x = PCoA3_oral, y = PCoA1_gut)) +

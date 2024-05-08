@@ -244,7 +244,7 @@ CAG_lifestyle_longer <- pivot_longer(CAG_avg, cols=c("CAG1", "CAG2", "CAG3", "CA
 # add levels
 CAG_lifestyle_longer$lifestyle <- factor(CAG_lifestyle_longer$lifestyle, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrialist"))
 
-CAG_colors <- c("#FFFF00", "#FF0033", "#FFFFFF", "#0000FF", "#66CCFF", "#000000")
+CAG_colors <- c("#EDAD08", "#94346E", "#FFFFFF", "#38A6A5", "#666666", "#000000")
 
 CAG_pie <- ggplot(CAG_lifestyle_longer, aes(x="", y=proportion, group=CAG, fill=CAG)) +
   geom_bar(width = 1, stat = "identity", color = "dark gray", linewidth = 0.2) + 

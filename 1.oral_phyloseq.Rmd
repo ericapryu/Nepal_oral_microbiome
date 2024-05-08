@@ -128,7 +128,7 @@ raw_count_mod <- raw_count[!(raw_count$sample %in% samples_remove),]
 ## track reads - R 
 ```{r}
 # put in alphabetical order
-raw_count_mod <- raw_count_mod[order(names(setNames(raw_count_mod, raw_count_mod)))]
+raw_count_mod <- raw_count_mod[order(raw_count_mod$sample),]
 # get read counts for all steps
 getN <- function(x) sum(getUniques(x))
 filtered <- as.data.frame(as.matrix(sapply(derepFs, getN)))
