@@ -21,6 +21,8 @@ library(ggsignif)
 library(FSA)
 library(vegan)
 library(dplyr)
+library(rbiom)
+library(ape)
 ```
 
 ## load data
@@ -36,12 +38,21 @@ psoil <- subset_samples(phyloseq_complete, Condition == "Psoil")
 ## load functions
 ```{r}
 # calculate beta diversity
-beta_ordinate <- function(physeq){
+beta_ordinate <- function(physeq, beta_dist){
   # set up data
-  ps.prop <- transform_sample_counts(physeq, function(otu) otu/sum(otu))
+  ps.prop <- transform_sample_counts(qiagen, function(otu) otu/sum(otu))
   ps.prop@otu_table <- na.omit(ps.prop@otu_table)
+  beta_inp <- t(as(otu_table(ps.prop), "matrix"))
   ## calculate distance and ordinate
-  ord.pcoa <- ordinate(ps.prop, method = "PCoA", distance = "bray")
+  if (beta_dist == "unweighted unifrac") {
+    dist <- unifrac(beta_inp, weighted = FALSE, tree = ps.prop@phy_tree)
+    return(pcoa(dist))
+  } else if (beta_dist == "weighted unifrac") {
+    dist <- unifrac(beta_inp, weighted = TRUE, tree = ps.prop@phy_tree)
+    return(pcoa(dist))
+  } else {
+    ord.pcoa <- ordinate(ps.prop, method = "PCoA", distance = "bray", weighted = FALSE)
+  }
 }
 
 # set up beta diversity data for plotting
@@ -61,9 +72,19 @@ plot_beta <- function(beta, physeq){
 }
 
 # calculate permanova
-permanova <- function(physeq){
-  df <- data.frame(sample_data(physeq))
-  dist = phyloseq::distance(physeq, method="bray",normalized=TRUE, parallel=FALSE, fast=TRUE) 
+permanova <- function(physeq, beta_dist){
+  # set up data
+  ps.prop <- transform_sample_counts(qiagen, function(otu) otu/sum(otu))
+  ps.prop@otu_table <- na.omit(ps.prop@otu_table)
+  df <- data.frame(sample_data(ps.prop))
+  beta_inp <- t(as(otu_table(ps.prop), "matrix"))
+  if (beta_dist == "unweighted unifrac") {
+    dist <- unifrac(beta_inp, weighted = FALSE, tree = ps.prop@phy_tree)
+  } else if (beta_dist == "weighted unifrac") {
+    dist <- unifrac(beta_inp, weighted = TRUE, tree = ps.prop@phy_tree)
+  } else {
+    dist = phyloseq::distance(ps.prop, method="bray", normalized=TRUE, parallel=FALSE, fast=TRUE) 
+  }
    perm <- adonis2(dist ~ Lifestyle, data = df, permutations = 99999)
    print(perm)
 }
@@ -213,7 +234,7 @@ kruskal.test(mean ~ Lifestyle, data = fisher_qiagen_nepal)
 
 ## examine beta diversity
 ```{r}
-bray_ordinate <- beta_ordinate(qiagen)
+bray_ordinate <- beta_ordinate(qiagen, beta_dist = "bray")
 bray_plot <- plot_beta(bray_ordinate, qiagen)
 
 bray <- ggplot(bray_plot, aes(x = as.numeric(Axis.1), y = as.numeric(Axis.2))) +
@@ -231,7 +252,7 @@ ggsave(file = "figures/bray_small.pdf", plot = bray, width = 6, height = 3)
 
 # permanova
 set.seed(105)
-bray_perm <- permanova(qiagen)
+bray_perm <- permanova(qiagen, beta_dist = "bray")
 
 ## PCoA1
 bray_pcoa1 <- ggplot(bray_plot, aes(x = lifestyle, y = as.numeric(Axis.1), group = lifestyle), color = black) +
@@ -273,7 +294,7 @@ ggsave(file = "figures/bray_pcoa1_small.pdf", plot = bray_pcoa1, width = 6, heig
 ggsave(file = "figures/bray_pcoa2_small.pdf", plot = bray_pcoa2, width = 6, height = 3)
 
 ## all powersoil metrics
-bray_ordinate_psoil <- beta_ordinate(psoil)
+bray_ordinate_psoil <- beta_ordinate(psoil, beta_dist = "bray")
 bray_plot_psoil <- plot_beta(bray_ordinate_psoil, psoil)
 
 bray_psoil <- ggplot(bray_plot_psoil, aes(x = as.numeric(Axis.1), y = as.numeric(Axis.2))) +
@@ -289,7 +310,7 @@ bray_psoil <- ggplot(bray_plot_psoil, aes(x = as.numeric(Axis.1), y = as.numeric
 
 ggsave(file = "figures/bray_psoil_small.pdf", plot = bray_psoil, width = 6, height = 3)
 
-bray_perm_psoil <- permanova(psoil)
+bray_perm_psoil <- permanova(psoil, beta_dist = "bray")
 
 bray_pcoa1_psoil <- ggplot(bray_plot_psoil, aes(x = lifestyle, y = as.numeric(Axis.1)*-1, group = lifestyle), color = black) +
   geom_violin(alpha = 0.8, aes(fill=lifestyle)) +
@@ -326,4 +347,133 @@ ggsave(file = "figures/bray_pcoa2_psoil_small.pdf", plot = bray_pcoa2_psoil, wid
 
 # trend test for axis 2
 JonckheereTerpstraTest(as.numeric(Axis.2) ~ lifestyle, data = bray_plot_psoil)
+```
+
+## check unweighted unifrac
+```{r}
+bray_ordinate_uw <- beta_ordinate(qiagen, beta_dist = "unweighted unifrac")
+bray_plot_uw <- plot_beta(bray_ordinate_uw, qiagen)
+
+bray_uw <- ggplot(bray_plot_uw, aes(x = as.numeric(Axis.1), y = as.numeric(Axis.2))) +
+  geom_point(shape = 21, color = "black", size = 3, aes(fill = lifestyle)) +
+  scale_x_continuous(breaks=seq(-1,1,0.1)) +
+  scale_y_continuous(breaks=seq(-1,1,0.1)) +
+  scale_fill_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"))+
+  labs(x = "PCoA1 (21.90%)",
+       y = "PCoA2 (11.77%)")
+
+ggsave(file = "figures/bray_uw_small.pdf", plot = bray_uw, width = 6, height = 3)
+
+# permanova
+set.seed(105)
+bray_perm_uw <- permanova(qiagen, beta_dist = "unweighted unifrac")
+
+## PCoA1
+bray_uw_pcoa1 <- ggplot(bray_plot_uw, aes(x = lifestyle, y = as.numeric(Axis.1), group = lifestyle), color = black) +
+  geom_violin(alpha = 0.8, aes(fill=lifestyle)) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) + 
+  scale_y_continuous(breaks=seq(-1,1,0.1), labels = scales::comma) +
+  scale_fill_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
+  geom_jitter(size = 1, col="darkgreen", width = 0.1) +
+  labs(x = "Lifestyle", y = "PCoA1 (21.90%)") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
+  theme(legend.position = "none")
+
+# load package for trend test
+library(DescTools) # this MUST be loaded after running permanova and all other vegan functions, because loading both DescTools and vegan causes vegan to stop working
+
+# trend test for axis 1
+JonckheereTerpstraTest(as.numeric(Axis.1) ~ lifestyle, data = bray_plot_uw)
+
+ggsave(file = "figures/bray_uw_pcoa1.pdf", plot = bray_uw_pcoa1, width = 4, height = 3)
+
+## PCoA2
+bray_uw_pcoa2 <- ggplot(bray_plot_uw, aes(x = lifestyle, y = as.numeric(Axis.2), group = lifestyle), color = black) +
+  geom_violin(alpha = 0.8, aes(fill=lifestyle)) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
+  scale_y_continuous(breaks=seq(-1,1,0.1), labels = scales::comma) +
+  scale_fill_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
+  geom_jitter(size = 1, col="darkgreen", width = 0.1) +
+  labs(x = "Lifestyle", y = "PCoA2 (11.77%)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) +
+  theme(legend.position = "none")
+
+# trend test for axis 2
+JonckheereTerpstraTest(as.numeric(Axis.2) ~ lifestyle, data = bray_plot_uw)
+
+ggsave(file = "figures/bray_uw_pcoa2.pdf", plot = bray_uw_pcoa2, width = 4, height = 3)
+
+```
+
+## check weighted unifrac
+```{r}
+bray_ordinate_w <- beta_ordinate(qiagen, beta_dist = "weighted unifrac")
+bray_plot_w <- plot_beta(bray_ordinate_w, qiagen)
+
+bray_w <- ggplot(bray_plot_w, aes(x = as.numeric(Axis.1), y = as.numeric(Axis.2))) +
+  geom_point(shape = 21, color = "black", size = 3, aes(fill = lifestyle)) +
+  scale_x_continuous(breaks=seq(-1,1,0.2)) +
+  scale_y_continuous(breaks=seq(-1,1,0.2)) +
+  scale_fill_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"))+
+  labs(x = "PCoA1 (53.61%)",
+       y = "PCoA2 (21.16%)")
+
+ggsave(file = "figures/bray_w_small.pdf", plot = bray_w, width = 6, height = 3)
+
+# permanova
+set.seed(105)
+bray_perm_w <- permanova(qiagen, beta_dist = "weighted unifrac")
+
+## PCoA1
+bray_w_pcoa1 <- ggplot(bray_plot_w, aes(x = lifestyle, y = as.numeric(Axis.1), group = lifestyle), color = black) +
+  geom_violin(alpha = 0.8, aes(fill=lifestyle)) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) + 
+  scale_y_continuous(breaks=seq(-1,1,0.2), labels = scales::comma) +
+  scale_fill_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
+  geom_jitter(size = 1, col="darkgreen", width = 0.1) +
+  labs(x = "Lifestyle", y = "PCoA1 (53.61%)") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) + 
+  theme(legend.position = "none")
+
+# load package for trend test
+library(DescTools) # this MUST be loaded after running permanova and all other vegan functions, because loading both DescTools and vegan causes vegan to stop working
+
+# trend test for axis 1
+JonckheereTerpstraTest(as.numeric(Axis.1) ~ lifestyle, data = bray_plot_w)
+
+ggsave(file = "figures/bray_w_pcoa1.pdf", plot = bray_w_pcoa1, width = 4, height = 3)
+
+## PCoA2
+bray_w_pcoa2 <- ggplot(bray_plot_w, aes(x = lifestyle, y = as.numeric(Axis.2), group = lifestyle), color = black) +
+  geom_violin(alpha = 0.8, aes(fill=lifestyle)) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
+  scale_y_continuous(breaks=seq(-1,1,0.2), labels = scales::comma) +
+  scale_fill_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
+  geom_jitter(size = 1, col="darkgreen", width = 0.1) +
+  labs(x = "Lifestyle", y = "PCoA2 (21.16%)") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.5, vjust=0.5)) +
+  theme(legend.position = "none")
+
+# trend test for axis 2
+JonckheereTerpstraTest(as.numeric(Axis.2) ~ lifestyle, data = bray_plot_w)
+
+ggsave(file = "figures/bray_w_pcoa2.pdf", plot = bray_w_pcoa2, width = 4, height = 3)
 ```

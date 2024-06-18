@@ -114,8 +114,10 @@ ggsave(file = "figures/pcoa_qvp_2.pdf", width = 5, height = 3, plot = pcoa_qvp_2
 
 ## PERMANOVA between kits
 ```{r}
-metadata <- data.frame(sample_data(phyloseq_complete))
-dist <- phyloseq::distance(phyloseq_complete, method="bray",normalized=TRUE, parallel=FALSE, fast=TRUE) 
+ps.prop <- transform_sample_counts(phyloseq_complete, function(otu) otu/sum(otu))
+ps.prop@otu_table <- na.omit(ps.prop@otu_table)
+metadata <- data.frame(sample_data(ps.prop))
+dist <- phyloseq::distance(ps.prop, method="bray",normalized=TRUE, parallel=FALSE, fast=TRUE) 
 adonis2(dist ~ Condition, data = metadata, permutations = 99999)
 ```
 

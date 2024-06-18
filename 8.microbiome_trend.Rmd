@@ -169,3 +169,54 @@ plot_sig_taxa <- ggplot(log_sig_taxa, aes(x = lifestyle, y = Rel_abund, group = 
 
 ggsave(file="figures/plot_sig_taxa.pdf", plot=plot_sig_taxa, width=7, height=7)
 ```
+
+## check if lifestyle is associated with sequencing depth
+```{r}
+read_depth <- data.table(as(sample_data(phy_genus), "data.frame"),
+                 TotalReads = sample_sums(phy_genus), keep.rownames = TRUE)
+
+lifestyle_reads <- ggplot(read_depth, aes(x = Lifestyle, y = TotalReads, group = Lifestyle), color = black) +
+  geom_violin(aes(fill=Lifestyle), alpha=0.8) +
+  geom_boxplot(width=0.1, color="black", alpha=0.2, outlier.shape = NA) +
+  scale_x_discrete(limits=c("Foragers", "RecentlySettled", "Agriculturalists", "Expats", "Industrial")) +
+  scale_fill_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "RecentlySettled", "Agriculturalists", "Expats", "Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats",  "American Industrial")) +
+  geom_jitter(size = 1, width=0.15, col="darkgreen") + 
+  labs(y = "Read Depth") +
+  theme(strip.text = element_text(face = "italic")) +
+  theme(axis.title.x = element_blank()) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.95, vjust=0.95)) +
+  theme(legend.position = "none") + xlab("")
+
+kruskal.test(TotalReads ~ Lifestyle, data = read_depth)
+
+ggsave(file="figures/lifestyle_reads.pdf", plot=lifestyle_reads, width=7, height=4)
+```
+
+## check if Brachy is correlated with sequencing depth
+```{r}
+brachy_relabund <- otu_tax[c("Brachymonas"),]
+
+brachy_corr <- as.data.frame(cbind(t(brachy_relabund), read_depth$TotalReads, read_depth$Lifestyle))
+
+colnames(brachy_corr) <- c("Brachy_relabund", "TotalReads", "Lifestyle")
+
+brachy_corr[brachy_corr == 0] <- NA
+
+brachy_corr_plot <- ggplot(brachy_corr, color = black, aes(x = log10(as.numeric(Brachy_relabund)), y = as.numeric(TotalReads))) +
+  geom_point(shape = 21, color = "black", size = 3, aes(fill = Lifestyle)) +
+  scale_fill_manual(name=NULL,
+                    values=fivecolors,
+                    breaks=c("Foragers", "RecentlySettled", "Agriculturalists", "Expats", "Industrial"),
+                    labels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats", "American Industrial")) +
+  geom_smooth(method = "glm") +
+  labs(x = "Brachymonas relative abundance",
+       y = "Total Read depth")
+
+cor.test(as.numeric(brachy_corr$Brachy_relabund), as.numeric(brachy_corr$TotalReads), alternative = "two.sided", method=c("spearman"))
+
+ggsave(file="figures/brachy_corr_plot.pdf", plot=brachy_corr_plot, width=7, height=4)
+```
+
