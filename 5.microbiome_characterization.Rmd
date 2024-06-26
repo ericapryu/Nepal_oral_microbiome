@@ -40,7 +40,7 @@ psoil <- subset_samples(phyloseq_complete, Condition == "Psoil")
 # calculate beta diversity
 beta_ordinate <- function(physeq, beta_dist){
   # set up data
-  ps.prop <- transform_sample_counts(qiagen, function(otu) otu/sum(otu))
+  ps.prop <- transform_sample_counts(physeq, function(otu) otu/sum(otu))
   ps.prop@otu_table <- na.omit(ps.prop@otu_table)
   beta_inp <- t(as(otu_table(ps.prop), "matrix"))
   ## calculate distance and ordinate
@@ -74,7 +74,7 @@ plot_beta <- function(beta, physeq){
 # calculate permanova
 permanova <- function(physeq, beta_dist){
   # set up data
-  ps.prop <- transform_sample_counts(qiagen, function(otu) otu/sum(otu))
+  ps.prop <- transform_sample_counts(physeq, function(otu) otu/sum(otu))
   ps.prop@otu_table <- na.omit(ps.prop@otu_table)
   df <- data.frame(sample_data(ps.prop))
   beta_inp <- t(as(otu_table(ps.prop), "matrix"))

@@ -1,7 +1,7 @@
 #!/bin/bash 
 
 # The purpose of this script is to run the stratified module of picrust on the qiagen samples - takes a few hours total, especially the pathway abundance inference step
-# Note: this script assumes that the output of script #11 and any KEGG files are in your current directory. All KEGG files are not provided as they are not publicly accessible.
+# Note: All files within the KEGG directory are not provided as they are not publicly accessible.
 
 #SBATCH --time=12:00:00  
 #SBATCH --nodes=2
@@ -11,15 +11,11 @@
 
 d1=$(date +%s) 
 
-RUN_PATH="/storage/group/exd44/default/epr5208/Himalayan_oral_microbiome/picrust2"
-BIOM="picrust_seq_tab_qiagen"
-SEQ="picrust_seq_qiagen"
-OUT_DIR="picrust2_qiagen_output"
-KEGG_MAP="ko_to_path"
-KEGG_NAME="ko_names"
-
-# change to directory that has the files
-cd $RUN_PATH
+BIOM="output/picrust_seq_tab_qiagen"
+SEQ="output/picrust_seq_qiagen"
+OUT_DIR="output/picrust2_qiagen_output"
+KEGG_MAP="KEGG/ko_to_path"
+KEGG_NAME="KEGG/ko_names"
 
 pwd 
 echo "Job started"
@@ -28,7 +24,7 @@ echo "Job started"
 module load anaconda3
 source activate picrust2
 
-# make directory for output
+# make directory for picrust2 output
 mkdir $OUT_DIR
 
 # format sequence file
