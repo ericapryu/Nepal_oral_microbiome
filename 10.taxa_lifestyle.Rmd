@@ -23,6 +23,7 @@ library(dplyr)
 library(ggplot2)
 library(purrr)
 library(heatmaply)
+library(rstatix)
 ```
 
 ## load data
@@ -417,5 +418,78 @@ hm_plot <- heatmaply(lifestylevtaxa_hm,
           colors = heatmap_col, file = "figures/hm_plot.pdf", width = 700, height = 800, text_angle = 15)
 
 # NOTE: if heatmaply fails to save the heatmap, either run webshot::install_phantomjs() or install orca at https://github.com/plotly/orca#installation
+```
+
+## distribution of smokers and alcohol drinkers
+```{r}
+lifestyle_distrib <- household
+
+lifestyle_distrib_factors <- subset(lifestyle_distrib, select = c(SMOK2, ALCO2, Lifestyle))
+
+lifestyle_distrib_factors$Lifestyle <- gsub("RecentlySettled", "Recently Settled", lifestyle_distrib_factors$Lifestyle)
+
+lifestyle_distrib_factors$SMOK2 <- ifelse(grepl("0",lifestyle_distrib_factors$SMOK2), "No", "Yes")
+lifestyle_distrib_factors$ALCO2 <- ifelse(grepl("0",lifestyle_distrib_factors$ALCO2), "No", "Yes")
+
+smok_count <- lifestyle_distrib_factors %>% count(Lifestyle,SMOK2)
+alc_count <- lifestyle_distrib_factors %>% count(Lifestyle,ALCO2)
+
+smok_count$SMOK2 <- factor(smok_count$SMOK2, levels=c("Yes", "No"))
+alc_count$ALCO2 <- factor(alc_count$ALCO2, levels=c("Yes", "No"))
+
+smok_count$Lifestyle <- factor(smok_count$Lifestyle, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats"))
+alc_count$Lifestyle <- factor(alc_count$Lifestyle, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats"))
+ 
+# Stacked
+smok_distrib <- ggplot(smok_count, aes(fill=SMOK2, y=n, x=Lifestyle)) + 
+    geom_bar(position="fill", stat="identity") +
+    scale_fill_manual(name=NULL,
+                    values=twocolors,
+                    breaks=c("Yes", "No"),
+                    labels=c("Yes", "No")) +
+  labs(title = "Smoking distribution",
+       x = "Lifestyle",
+       y = "Proportion")
+
+ggsave(file="figures/smok_distrib.pdf", plot=smok_distrib, width=6, height=2)
+
+alco_distrib <- ggplot(alc_count, aes(fill=ALCO2, y=n, x=Lifestyle)) + 
+    geom_bar(position="fill", stat="identity") +
+    scale_fill_manual(name=NULL,
+                    values=twocolors,
+                    breaks=c("Yes", "No"),
+                    labels=c("Yes", "No")) +
+  labs(title = "Alcohol distribution",
+       x = "Lifestyle",
+       y = "Proportion")
+
+ggsave(file="figures/alco_distrib.pdf", plot=alco_distrib, width=6, height=2)
+
+# test for association
+## smoking
+smok_conting <- as.data.frame(smok_count %>% pivot_wider(names_from = SMOK2, values_from = n))
+
+smok_conting$Lifestyle  <- ifelse(smok_conting$Lifestyle == "Foragers", "1.Foragers",
+                              ifelse(smok_conting$Lifestyle == "Recently Settled", "2.Recently Settled",
+                              ifelse(smok_conting$Lifestyle == "Agriculturalists", "3.Agriculturalists","4.Expats")))
+
+rownames(smok_conting) <- smok_conting$Lifestyle
+smok_conting <- subset(smok_conting, select = -c(Lifestyle))
+smok_conting <- smok_conting[order(row.names(smok_conting)), , drop = FALSE]
+
+smok_chisq <- prop_trend_test(smok_conting)
+
+## alcohol
+alc_conting <- as.data.frame(alc_count %>% pivot_wider(names_from = ALCO2, values_from = n))
+
+alc_conting$Lifestyle  <- ifelse(alc_conting$Lifestyle == "Foragers", "1.Foragers",
+                              ifelse(alc_conting$Lifestyle == "Recently Settled", "2.Recently Settled",
+                              ifelse(alc_conting$Lifestyle == "Agriculturalists", "3.Agriculturalists","4.Expats")))
+
+rownames(alc_conting) <- alc_conting$Lifestyle
+alc_conting <- subset(alc_conting, select = -c(Lifestyle))
+alc_conting <- alc_conting[order(row.names(alc_conting)), , drop = FALSE]
+
+alc_chisq <- prop_trend_test(alc_conting)
 ```
 

@@ -220,3 +220,148 @@ cor.test(as.numeric(brachy_corr$Brachy_relabund), as.numeric(brachy_corr$TotalRe
 ggsave(file="figures/brachy_corr_plot.pdf", plot=brachy_corr_plot, width=7, height=4)
 ```
 
+## check if trends hold without the americans
+```{r}
+no_am_ps <- subset_samples(qiagen, Lifestyle != "Industrial")
+
+# prep OTU table
+phy_genus_no_am <-  tax_glom(no_am_ps, "Genus", NArm = FALSE);phy_genus_no_am
+phy_genus_RA_no_am <- transform_sample_counts(phy_genus_no_am, function(otu) otu/sum(otu))
+otu_table_no_am <- as.data.frame(as.matrix(phy_genus_RA_no_am@otu_table))
+
+setDT(otu_table_no_am, keep.rownames = TRUE)[]
+colnames(otu_table_no_am)[1] <- "SampleID"
+
+otu_table2_no_am <- otu_table_no_am %>% data.frame %>% set_rownames(.$SampleID)
+otu_table2_no_am <- otu_table2_no_am[,-1]
+otu_table2_no_am <- t(otu_table2_no_am)
+tax_table_no_am <- as.data.frame(as.matrix(phy_genus_no_am@tax_table))
+
+otu_tax_no_am <- merge(otu_table2_no_am, tax_table_no_am, by = 0, all = TRUE)
+
+## change colnames to genus name
+otu_tax_no_am$Genus <- replace_na(otu_tax_no_am$Genus, "_unclassified")
+
+## and add higher taxonomic level to unclassified
+otu_tax_no_am$Phylum <- ifelse(is.na(otu_tax_no_am$Phylum), otu_tax_no_am$Kingdom, otu_tax_no_am$Phylum)
+otu_tax_no_am$Class <- ifelse(is.na(otu_tax_no_am$Class), otu_tax_no_am$Phylum, otu_tax_no_am$Class)
+otu_tax_no_am$Order <- ifelse(is.na(otu_tax_no_am$Order), otu_tax_no_am$Class, otu_tax_no_am$Order)
+otu_tax_no_am$Family <- ifelse(is.na(otu_tax_no_am$Family), otu_tax_no_am$Order, otu_tax_no_am$Family)
+
+otu_tax_no_am$Genus <- ifelse(otu_tax_no_am$Genus == "_unclassified", paste(otu_tax_no_am$Family, otu_tax_no_am$Genus, sep = ""), otu_tax_no_am$Genus)
+
+## rename completely unclassified ASV
+otu_tax_no_am$Genus <- gsub("NA_unclassified", "Unclassified", otu_tax_no_am$Genus)
+
+## make genus rownames
+rownames(otu_tax_no_am) <- otu_tax_no_am$Genus
+## and remove taxonomic columns
+otu_tax_no_am <- subset(otu_tax_no_am, select = -c(Row.names, Kingdom, Phylum, Class, Order, Family, Genus))
+
+## transpose
+trend_asvs_no_am <- as.data.frame(t(otu_tax_no_am))
+
+## add lifestyle info
+trend_asvs_no_am$lifestyle  <- ifelse(grepl("CHE",row.names(trend_asvs_no_am)), "Foragers",
+                              ifelse(grepl("NEW00",row.names(trend_asvs_no_am)) | grepl("NEW10",row.names(trend_asvs_no_am)) | grepl("THA",row.names(trend_asvs_no_am)), "Agriculturalists",
+                              ifelse(grepl("NEW01",row.names(trend_asvs_no_am)) | grepl("NEW11",row.names(trend_asvs_no_am)), "Expats", "Recently Settled")))
+
+## establish levels
+trend_asvs_no_am$lifestyle <- factor(trend_asvs_no_am$lifestyle, ordered = TRUE, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats"))
+
+# run trend test for each genus
+## make empty data frame that will be filled with trend test results
+trend_result_no_am <- data.frame(matrix(ncol = 3, nrow = length(colnames(trend_asvs_no_am))))
+colnames(trend_result_no_am) <- c("taxa", "p_value", "BHadj_p_value")
+
+trend_result_no_am$taxa <- colnames(trend_asvs_no_am)
+
+## remove lifestyle row
+trend_result_no_am <- trend_result_no_am[!grepl("lifestyle", trend_result_no_am$taxa),]
+
+trend_vector_no_am <- c()
+
+for(i in colnames(trend_asvs_no_am)){
+  obj_no_am <- print(JonckheereTerpstraTest(as.formula(paste0(i, "~ lifestyle")),  data=trend_asvs_no_am))
+  trend_vector_no_am = c(trend_vector_no_am, obj_no_am$p.value)
+}
+
+# multiple test correction
+trend_result_no_am$p_value <- trend_vector_no_am
+
+## run multiple test correction
+trend_result_no_am$BHadj_p_value <- p.adjust(trend_result_no_am$p_value, method = "BH", n = length(trend_result_no_am$p_value))
+```
+
+## check if trends hold without the foragers
+```{r}
+forager_ps <- subset_samples(qiagen, Lifestyle != "Forager")
+
+# prep OTU table
+phy_genus_forager <-  tax_glom(no_am_ps, "Genus", NArm = FALSE);phy_genus_forager
+phy_genus_RA_forager <- transform_sample_counts(phy_genus_forager, function(otu) otu/sum(otu))
+otu_table_forager <- as.data.frame(as.matrix(phy_genus_RA_forager@otu_table))
+
+setDT(otu_table_forager, keep.rownames = TRUE)[]
+colnames(otu_table_forager)[1] <- "SampleID"
+
+otu_table2_forager <- otu_table_forager %>% data.frame %>% set_rownames(.$SampleID)
+otu_table2_forager <- otu_table2_forager[,-1]
+otu_table2_forager <- t(otu_table2_forager)
+tax_table_forager <- as.data.frame(as.matrix(phy_genus_forager@tax_table))
+
+otu_tax_forager <- merge(otu_table2_forager, tax_table_forager, by = 0, all = TRUE)
+
+## change colnames to genus name
+otu_tax_forager$Genus <- replace_na(otu_tax_forager$Genus, "_unclassified")
+
+## and add higher taxonomic level to unclassified
+otu_tax_forager$Phylum <- ifelse(is.na(otu_tax_forager$Phylum), otu_tax_forager$Kingdom, otu_tax_forager$Phylum)
+otu_tax_forager$Class <- ifelse(is.na(otu_tax_forager$Class), otu_tax_forager$Phylum, otu_tax_forager$Class)
+otu_tax_forager$Order <- ifelse(is.na(otu_tax_forager$Order), otu_tax_forager$Class, otu_tax_forager$Order)
+otu_tax_forager$Family <- ifelse(is.na(otu_tax_forager$Family), otu_tax_forager$Order, otu_tax_forager$Family)
+
+otu_tax_forager$Genus <- ifelse(otu_tax_forager$Genus == "_unclassified", paste(otu_tax_forager$Family, otu_tax_forager$Genus, sep = ""), otu_tax_forager$Genus)
+
+## rename completely unclassified ASV
+otu_tax_forager$Genus <- gsub("NA_unclassified", "Unclassified", otu_tax_forager$Genus)
+
+## make genus rownames
+rownames(otu_tax_forager) <- otu_tax_forager$Genus
+## and remove taxonomic columns
+otu_tax_forager <- subset(otu_tax_forager, select = -c(Row.names, Kingdom, Phylum, Class, Order, Family, Genus))
+
+## transpose
+trend_asvs_forager <- as.data.frame(t(otu_tax_forager))
+
+## add lifestyle info
+trend_asvs_forager$lifestyle  <- ifelse(grepl("CHE",row.names(trend_asvs_forager)), "Foragers",
+                              ifelse(grepl("NEW00",row.names(trend_asvs_forager)) | grepl("NEW10",row.names(trend_asvs_forager)) | grepl("THA",row.names(trend_asvs_forager)), "Agriculturalists",
+                              ifelse(grepl("NEW01",row.names(trend_asvs_forager)) | grepl("NEW11",row.names(trend_asvs_forager)), "Expats", "Recently Settled")))
+
+## establish levels
+trend_asvs_forager$lifestyle <- factor(trend_asvs_forager$lifestyle, ordered = TRUE, levels=c("Foragers", "Recently Settled", "Agriculturalists", "Expats"))
+
+# run trend test for each genus
+## make empty data frame that will be filled with trend test results
+trend_result_forager <- data.frame(matrix(ncol = 3, nrow = length(colnames(trend_asvs_forager))))
+colnames(trend_result_forager) <- c("taxa", "p_value", "BHadj_p_value")
+
+trend_result_forager$taxa <- colnames(trend_asvs_forager)
+
+## remove lifestyle row
+trend_result_forager <- trend_result_forager[!grepl("lifestyle", trend_result_forager$taxa),]
+
+trend_vector_forager <- c()
+
+for(i in colnames(trend_asvs_forager)){
+  obj_forager <- print(JonckheereTerpstraTest(as.formula(paste0(i, "~ lifestyle")),  data=trend_asvs_forager))
+  trend_vector_forager = c(trend_vector_forager, obj_forager$p.value)
+}
+
+# multiple test correction
+trend_result_forager$p_value <- trend_vector_forager
+
+## run multiple test correction
+trend_result_forager$BHadj_p_value <- p.adjust(trend_result_forager$p_value, method = "BH", n = length(trend_result_forager$p_value))
+```

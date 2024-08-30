@@ -22,6 +22,8 @@ library(data.table)
 library(dplyr)
 library(tidyr)
 library(magrittr)
+library(MASS)
+library(clinfun)
 ```
 
 ## load data
@@ -459,3 +461,185 @@ JonckheereTerpstraTest(distance ~ lifestyle, data = qia_gut_indiv_dist_tab)
 
 ggsave(file="figures/overlap_beta.pdf", plot=overlap_beta, width=6, height=3)
 ```
+
+## power calculation
+```{r}
+# get sample count
+forager_count <- length(which(qia_gut_indiv_dist_tab$lifestyle == "Foragers"))
+rs_count <- length(which(qia_gut_indiv_dist_tab$lifestyle == "Recently Settled"))
+ag_count <- length(which(qia_gut_indiv_dist_tab$lifestyle == "Agriculturalists"))
+
+# get effect sizes
+df_gut_oral_dist <- as.data.frame(qia_gut_indiv_dist_tab)
+df_gut_oral_dist <- subset(df_gut_oral_dist, select=-c(sample))
+df_gut_oral_dist_forg_rs <- subset(df_gut_oral_dist, lifestyle != "Agriculturalists")
+df_gut_oral_dist_forg_ag <- subset(df_gut_oral_dist, lifestyle != "Recently Settled")
+
+## forg - rs
+forg_rs_mean <- df_gut_oral_dist_forg_rs %>%
+    # Specify group indicator, column, function
+    group_by(lifestyle) %>%
+    # Calculate the mean of the "Frequency" column for each group
+    summarise_at(vars(distance),
+                 list(Mean_Frequency = mean))
+
+forg_rs_sd <- df_gut_oral_dist_forg_rs %>%
+    # Specify group indicator, column, function
+    group_by(lifestyle) %>%
+    # Calculate the mean of the "Frequency" column for each group
+    summarise_at(vars(distance),
+                 list(sd_Frequency = sd))
+
+forg_mean <- 0.8290034
+rs_mean <- 0.8221369
+forg_sd <- 0.1453378
+rs_sd <- 0.1432843
+
+pool_forg_rs_sd <- sqrt((((rs_count - 1) * rs_sd^2) + ((forager_count - 1) * forg_sd^2))/(forager_count + rs_count - 2))
+
+d_forg_rs <- (forg_mean - rs_mean)/pool_forg_rs_sd
+
+## rs-ag
+rs_ag_mean <- df_gut_oral_dist_rs_ag %>%
+    # Specify group indicator, column, function
+    group_by(lifestyle) %>%
+    # Calculate the mean of the "Frequency" column for each group
+    summarise_at(vars(distance),
+                 list(Mean_Frequency = mean))
+
+rs_ag_sd <- df_gut_oral_dist_rs_ag %>%
+    # Specify group indicator, column, function
+    group_by(lifestyle) %>%
+    # Calculate the mean of the "Frequency" column for each group
+    summarise_at(vars(distance),
+                 list(sd_Frequency = sd))
+
+forg_mean <- 0.829003
+ag_mean <- 0.7762685
+forg_sd <- 0.1453378
+ag_sd <- 0.09477919
+
+pool_forg_ag_sd <- sqrt((((ag_count - 1) * ag_sd^2) + ((forager_count - 1) * forg_sd^2))/(forager_count + ag_count - 2))
+
+d_forg_ag <- (forg_mean - ag_mean)/pool_forg_ag_sd
+
+# calculate
+power.ladesign(c(12, 14, 12), odds.ratio = c(d_forg_rs, d_forg_ag), sig.level = 0.05, statistic = c("Jonckheere-Terpstra"), alternative = c("two.sided"))
+```
+
+## power analysis
+```{r}
+# 20 
+forager_20 <- 20
+rs_20 <- 20
+ag_20 <- 20
+
+pool_forg_rs_sd_20 <- sqrt((((rs_20 - 1) * rs_sd^2) + ((forager_20 - 1) * forg_sd^2))/(forager_20 + rs_20 - 2))
+
+d_forg_rs_20 <- (forg_mean - rs_mean)/pool_forg_rs_sd_20
+
+pool_forg_ag_sd_20 <- sqrt((((ag_20 - 1) * ag_sd^2) + ((forager_20 - 1) * forg_sd^2))/(forager_20 + ag_20 - 2))
+
+d_forg_ag_20 <- (forg_mean - ag_mean)/pool_forg_ag_sd_20
+
+power.ladesign(c(20, 20, 20), odds.ratio = c(d_forg_rs_20, d_forg_ag_20), sig.level = 0.05, statistic = c("Jonckheere-Terpstra"), alternative = c("two.sided"))
+
+
+# 30 
+forager_30 <- 30
+rs_30 <- 30
+ag_30 <- 30
+
+pool_forg_rs_sd_30 <- sqrt((((rs_30 - 1) * rs_sd^2) + ((forager_30 - 1) * forg_sd^2))/(forager_30 + rs_30 - 2))
+
+d_forg_rs_30 <- (forg_mean - rs_mean)/pool_forg_rs_sd_30
+
+pool_forg_ag_sd_30 <- sqrt((((ag_30 - 1) * ag_sd^2) + ((forager_30 - 1) * forg_sd^2))/(forager_30 + ag_30 - 2))
+
+d_forg_ag_30 <- (forg_mean - ag_mean)/pool_forg_ag_sd_30
+
+power.ladesign(c(30, 30, 30), odds.ratio = c(d_forg_rs_30, d_forg_ag_30), sig.level = 0.05, statistic = c("Jonckheere-Terpstra"), alternative = c("two.sided"))
+
+
+# 40 
+forager_40 <- 40
+rs_40 <- 40
+ag_40 <- 40
+
+pool_forg_rs_sd_40 <- sqrt((((rs_40 - 1) * rs_sd^2) + ((forager_40 - 1) * forg_sd^2))/(forager_40 + rs_40 - 2))
+
+d_forg_rs_40 <- (forg_mean - rs_mean)/pool_forg_rs_sd_40
+
+pool_forg_ag_sd_40 <- sqrt((((ag_40 - 1) * ag_sd^2) + ((forager_40 - 1) * forg_sd^2))/(forager_40 + ag_40 - 2))
+
+d_forg_ag_40 <- (forg_mean - ag_mean)/pool_forg_ag_sd_40
+
+power.ladesign(c(40, 40, 40), odds.ratio = c(d_forg_rs_40, d_forg_ag_40), sig.level = 0.05, statistic = c("Jonckheere-Terpstra"), alternative = c("two.sided"))
+
+
+# 50 
+forager_50 <- 50
+rs_50 <- 50
+ag_50 <- 50
+
+pool_forg_rs_sd_50 <- sqrt((((rs_50 - 1) * rs_sd^2) + ((forager_50 - 1) * forg_sd^2))/(forager_50 + rs_50 - 2))
+
+d_forg_rs_50 <- (forg_mean - rs_mean)/pool_forg_rs_sd_50
+
+pool_forg_ag_sd_50 <- sqrt((((ag_50 - 1) * ag_sd^2) + ((forager_50 - 1) * forg_sd^2))/(forager_50 + ag_50 - 2))
+
+d_forg_ag_50 <- (forg_mean - ag_mean)/pool_forg_ag_sd_50
+
+power.ladesign(c(50, 50, 50), odds.ratio = c(d_forg_rs_50, d_forg_ag_50), sig.level = 0.05, statistic = c("Jonckheere-Terpstra"), alternative = c("two.sided"))
+
+
+# 60 
+forager_60 <- 60
+rs_60 <- 60
+ag_60 <- 60
+
+pool_forg_rs_sd_60 <- sqrt((((rs_60 - 1) * rs_sd^2) + ((forager_60 - 1) * forg_sd^2))/(forager_60 + rs_60 - 2))
+
+d_forg_rs_60 <- (forg_mean - rs_mean)/pool_forg_rs_sd_60
+
+pool_forg_ag_sd_60 <- sqrt((((ag_60 - 1) * ag_sd^2) + ((forager_60 - 1) * forg_sd^2))/(forager_60 + ag_60 - 2))
+
+d_forg_ag_60 <- (forg_mean - ag_mean)/pool_forg_ag_sd_60
+
+power.ladesign(c(60, 60, 60), odds.ratio = c(d_forg_rs_60, d_forg_ag_60), sig.level = 0.05, statistic = c("Jonckheere-Terpstra"), alternative = c("two.sided"))
+
+
+# 62 
+forager_62 <- 62
+rs_62 <- 62
+ag_62 <- 62
+
+pool_forg_rs_sd_62 <- sqrt((((rs_62 - 1) * rs_sd^2) + ((forager_62 - 1) * forg_sd^2))/(forager_62 + rs_62 - 2))
+
+d_forg_rs_62 <- (forg_mean - rs_mean)/pool_forg_rs_sd_62
+
+pool_forg_ag_sd_62 <- sqrt((((ag_62 - 1) * ag_sd^2) + ((forager_62 - 1) * forg_sd^2))/(forager_62 + ag_62 - 2))
+
+d_forg_ag_62 <- (forg_mean - ag_mean)/pool_forg_ag_sd_62
+
+power.ladesign(c(62, 62, 62), odds.ratio = c(d_forg_rs_62, d_forg_ag_62), sig.level = 0.05, statistic = c("Jonckheere-Terpstra"), alternative = c("two.sided"))
+```
+
+## plot power analysis
+```{r}
+samp_size <- c(12.7, 20, 30, 40, 50, 60, 62)
+power_lev <- c(0.041, 0.156, 0.327, 0.502, 0.66, 0.785, 0.804)
+df_power_plot <- as.data.frame(cbind(samp_size, power_lev))
+
+power_plot <- ggplot(df_power_plot, aes(x = samp_size, y = power_lev)) +
+  geom_line() +
+  geom_hline(yintercept = 0.8, linetype="dashed", color = "blue") +
+  geom_hline(yintercept = 0.041, linetype="dashed", color = "red") +
+  geom_point(shape = 16, color = "black", size = 3)  + 
+  labs(x = "Sample Size", y = "Predicted Power") +
+  theme(legend.position = "none")
+
+ggsave(file="figures/power_plot.pdf", plot=power_plot, width=6, height=3)
+
+```
+

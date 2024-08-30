@@ -582,11 +582,21 @@ CCA_sig_plot <- ggplot(data=df_sites)+
 ggsave(file="figures/CCA.pdf", plot=CCA_sig_plot, width=5, height=4)
 ```
 
-# check to see if CA axes follow the lifestyle trend
+## check to see if CA axes follow the lifestyle trend
 ```{r}
 library(DescTools) # this MUST be loaded after running permanova and all other vegan functions, because loading both DescTools and vegan causes vegan to stop working
 
 JonckheereTerpstraTest(as.numeric(Dim1) ~ lifestyle, data = row_axes)
 JonckheereTerpstraTest(as.numeric(Dim2) ~ lifestyle, data = row_axes)
+```
+
+## CCA without variable selection
+```{r}
+# CCA with CA1
+set.seed(101)
+cca_model <- cca(CCA_otu_tax_t ~ alcohol + tobacco + smoking + scarcity + sex + location + yogurt_freq + literacy + Sisnu + grain + fuel + health_travel + education + ayurvedic + drinking_water + kitchen_loc + toilet + fish + meat + black_tea + milk_tea + soda + milk + yogurt + fermented + ferm_freq + food_source + exercise + exercise_freq + sick_checkup + checkup_loc + meds + brushing + brushing_freq + age + household + children, data = df_CA_factor)
+
+vif.cca(cca_model_CA1_CA2)
+```
 ```
 

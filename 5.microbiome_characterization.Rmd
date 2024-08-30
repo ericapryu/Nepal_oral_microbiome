@@ -23,6 +23,7 @@ library(vegan)
 library(dplyr)
 library(rbiom)
 library(ape)
+library(pairwiseAdonis)
 ```
 
 ## load data
@@ -254,6 +255,15 @@ ggsave(file = "figures/bray_small.pdf", plot = bray, width = 6, height = 3)
 set.seed(105)
 bray_perm <- permanova(qiagen, beta_dist = "bray")
 
+# pairwise adonis
+ps_RA <- transform_sample_counts(qiagen, function(otu) otu/sum(otu))
+ps_RA@otu_table <- na.omit(ps_RA@otu_table)
+dist_bray <- phyloseq::distance(ps_RA, method="bray", normalized=TRUE, parallel=FALSE, fast=TRUE) 
+pw_adonis <-  pairwise.adonis(dist_bray, phyloseq::sample_data(ps_RA)$Lifestyle)
+
+pairwise_adonis(x, factors, sim_method = "bray",
+  p_adjust_m = "bonferroni", reduce = NULL)
+
 ## PCoA1
 bray_pcoa1 <- ggplot(bray_plot, aes(x = lifestyle, y = as.numeric(Axis.1), group = lifestyle), color = black) +
   geom_violin(alpha = 0.8, aes(fill=lifestyle)) +
@@ -477,3 +487,28 @@ JonckheereTerpstraTest(as.numeric(Axis.2) ~ lifestyle, data = bray_plot_w)
 
 ggsave(file = "figures/bray_w_pcoa2.pdf", plot = bray_w_pcoa2, width = 4, height = 3)
 ```
+
+## comparison with covariates
+```{r}
+# sex
+ps.prop_cov <- transform_sample_counts(qiagen, function(otu) otu/sum(otu))
+ps.prop_cov@otu_table <- na.omit(ps.prop_cov@otu_table)
+df_cov <- data.frame(sample_data(ps.prop_cov))
+beta_inp_cov <- t(as(otu_table(ps.prop_cov), "matrix"))
+
+set.seed(111)
+dist_bray <- phyloseq::distance(ps.prop_cov, method="bray", normalized=TRUE, parallel=FALSE, fast=TRUE) 
+perm_bray_sex <- adonis2(dist_bray ~ Lifestyle + SEX, data = df_cov, permutations = 99999)
+
+# sex and age
+no_am_ps <- subset_samples(qiagen, Lifestyle != "Industrial")
+ps.prop_noam <- transform_sample_counts(no_am_ps, function(otu) otu/sum(otu))
+ps.prop_noam@otu_table <- na.omit(ps.prop_noam@otu_table)
+df_noam <- data.frame(sample_data(ps.prop_noam))
+beta_inp_noam <- t(as(otu_table(ps.prop_noam), "matrix"))
+
+set.seed(100)
+dist_bray_noam <- phyloseq::distance(ps.prop_noam, method="bray", normalized=TRUE, parallel=FALSE, fast=TRUE) 
+perm_bray_noam <- adonis2(dist_bray_noam ~ Lifestyle + SEX + AGE, data = df_noam, permutations = 99999)
+```
+

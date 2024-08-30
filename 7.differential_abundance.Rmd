@@ -163,9 +163,9 @@ write.csv(model_kw_gut, file = "output/model_kw_gut.csv")
 
 ## prep for comparison with added covariates
 ```{r}
-no_am <- subset_samples(qiagen, Lifestyle != "Industrial")
+no_am_ps <- subset_samples(qiagen, Lifestyle != "Industrial")
 
-no_am_genus <-  tax_glom(no_am, "Genus", NArm = FALSE)
+no_am_genus <-  tax_glom(no_am_ps, "Genus", NArm = FALSE)
 otu_no_am <- as.data.frame(as.matrix(no_am_genus@otu_table))
 
 setDT(otu_no_am, keep.rownames = TRUE)[]
@@ -174,7 +174,7 @@ colnames(otu_no_am)[1] <- "SampleID"
 otu_no_am2 <- otu_no_am %>% data.frame %>% set_rownames(.$SampleID)
 otu_no_am2 <- otu_no_am2[,-1]
 otu_no_am2 <- t(otu_no_am2)
-tax_no_am <- as.data.frame(as.matrix(no_am_genus@tax_no_am))
+tax_no_am <- as.data.frame(as.matrix(no_am_genus@tax_table))
 
 otu_tax_no_am <- merge(otu_no_am2, tax_no_am, by = 0, all = TRUE)
 
@@ -216,25 +216,25 @@ lifestyle <- gsub("Industrial", "5.American Industrialist", lifestyle)
 covariates_lifestyle <- data.frame(lifestyle)
 mm_lifestyle <- model.matrix(~ lifestyle, covariates_lifestyle)
 
+set.seed(100)
 x.glm <- aldex.clr(otu_tax, mm_lifestyle, mc.samples=1000, denom="all", verbose=T)
 glm.test <- aldex.glm(x.glm, mm_lifestyle)
-glm.eff <- aldex.glm.effect(x.glm)
 
 ## lifestyle and sex
 covariates_sex <- data.frame(lifestyle, sex)
 
 mm_sex <- model.matrix(~ lifestyle + sex, covariates_sex)
 
+set.seed(100)
 x.glm.sex <- aldex.clr(otu_tax, mm_sex, mc.samples=1000, denom="all", verbose=T)
 glm.test.sex <- aldex.glm(x.glm.sex, mm_sex)
-glm.eff.sex <- aldex.glm.effect(x.glm.sex)
 
 
 # no americans
 ## covariates
-sex_noam <- pcoa_corr@sam_data$SEX
-age <- pcoa_corr@sam_data$AGE
-lifestyle_noam <- pcoa_corr@sam_data$Lifestyle
+sex_noam <- no_am_ps@sam_data$SEX
+age <- no_am_ps@sam_data$AGE
+lifestyle_noam <- no_am_ps@sam_data$Lifestyle
 
 lifestyle_noam <- gsub("Foragers", "1.Foragers", lifestyle_noam)
 lifestyle_noam <- gsub("RecentlySettled", "2.Recently Settled", lifestyle_noam)
@@ -246,40 +246,22 @@ covariates_noam <- data.frame(lifestyle_noam)
 
 mm_noam <- model.matrix(~ lifestyle_noam, covariates_noam)
 
+set.seed(100)
 x.glm.noam <- aldex.clr(otu_tax_no_am, mm_noam, mc.samples=1000, denom="all", verbose=T)
 glm.test.noam <- aldex.glm(x.glm.noam, mm_noam)
-glm.eff.noam <- aldex.glm.effect(x.glm.noam)
 
 ## all covariates
-covariates_all <- data.frame(sex_noam, age, lifestyle_noam)
+covariates_all <- data.frame(age, lifestyle_noam)
 
-mm_all <- model.matrix(~ age  + sex_noam + lifestyle_noam, covariates_all)
+mm_all <- model.matrix(~ age  + lifestyle_noam, covariates_all)
 
+set.seed(100)
 x.glm.all <- aldex.clr(otu_tax_no_am, mm_all, mc.samples=1000, denom="all", verbose=T)
 glm.test.all <- aldex.glm(x.glm.all, mm_all)
-glm.eff.all <- aldex.glm.effect(x.glm.all)
+```
 
-#######
-conds <- age
-
-transform_kw_age <- aldex.clr(otu_tax, conds, mc.samples=16, denom="all")
-
-model_corr <- aldex.corr(transform_kw_age, age)
-
-sex <- pcoa_corr@sam_data$SEX
-age <- pcoa_corr@sam_data$AGE
-lifestyle <- pcoa_corr@sam_data$Lifestyle
-
-covariates <- data.frame(age, lifestyle)
-
-mm <- model.matrix(~ age + lifestyle, covariates)
-
-x.glm.age <- aldex.clr(otu_tax, mm, mc.samples=1000, denom="all", verbose=T)
-glm.test.age <- aldex.glm(x.glm.age, mm)
-glm.eff.age <- aldex.glm.effect(x.glm.age)
-########
-
-# BH correction
+## BH correction
+```{r}
 glm.test$`lifestyle2.Recently Settled:pval.BH` <- p.adjust(glm.test$`lifestyle2.Recently Settled:pval`, method = "BH", n = length(glm.test$`lifestyle2.Recently Settled:pval`))
 glm.test$`lifestyle3.Agriculturalists:pval.BH` <- p.adjust(glm.test$`lifestyle3.Agriculturalists:pval`, method = "BH", n = length(glm.test$`lifestyle3.Agriculturalists:pval`))
 glm.test$`lifestyle4.Expats:pval.BH` <- p.adjust(glm.test$`lifestyle4.Expats:pval`, method = "BH", n = length(glm.test$`lifestyle4.Expats:pval`))
@@ -297,31 +279,23 @@ glm.test.noam$`lifestyle_noam4.Expats:pval.BH` <- p.adjust(glm.test.noam$`lifest
 glm.test.all$`lifestyle_noam2.Recently Settled:pval.BH` <- p.adjust(glm.test.all$`lifestyle_noam2.Recently Settled:pval`, method = "BH", n = length(glm.test.all$`lifestyle_noam2.Recently Settled:pval`))
 glm.test.all$`lifestyle_noam3.Agriculturalists:pval.BH` <- p.adjust(glm.test.all$`lifestyle_noam3.Agriculturalists:pval`, method = "BH", n = length(glm.test.all$`lifestyle_noam3.Agriculturalists:pval`))
 glm.test.all$`lifestyle_noam4.Expats:pval.BH` <- p.adjust(glm.test.all$`lifestyle_noam4.Expats:pval`, method = "BH", n = length(glm.test.all$`lifestyle_noam4.Expats:pval`))
+```
 
-glm.test.sex$`sexM:pval.BH` <- p.adjust(glm.test.sex$`sexM:pval`, method = "BH", n = length(glm.test.sex$`sexM:pval`))
+## only keep pertinent columns
+```{r}
+glm.test.BH <- subset(glm.test, select = c("lifestyle2.Recently Settled:pval", "lifestyle3.Agriculturalists:pval", "lifestyle4.Expats:pval", "lifestyle5.American Industrialist:pval", "lifestyle2.Recently Settled:pval.BH", "lifestyle3.Agriculturalists:pval.BH", "lifestyle4.Expats:pval.BH", "lifestyle5.American Industrialist:pval.BH"))
 
-glm.test.all$`sex_noamM:pval.BH` <- p.adjust(glm.test.all$`sex_noamM:pval`, method = "BH", n = length(glm.test.all$`sex_noamM:pval`))
+glm.test.sex.BH <- subset(glm.test.sex, select = c("lifestyle2.Recently Settled:pval", "lifestyle3.Agriculturalists:pval", "lifestyle4.Expats:pval", "lifestyle5.American Industrialist:pval", "lifestyle2.Recently Settled:pval.BH", "lifestyle3.Agriculturalists:pval.BH", "lifestyle4.Expats:pval.BH", "lifestyle5.American Industrialist:pval.BH"))
 
-# plots
-aldex.glm.plot(glm.test.sex, eff=glm.eff.sex, contrast="sexM", type="volcano", test="fdr", main = "comparison across sex")
+glm.test.noam.BH <- subset(glm.test.noam, select = c("lifestyle_noam2.Recently Settled:pval", "lifestyle_noam3.Agriculturalists:pval", "lifestyle_noam4.Expats:pval", "lifestyle_noam2.Recently Settled:pval.BH", "lifestyle_noam3.Agriculturalists:pval.BH", "lifestyle_noam4.Expats:pval.BH"))
 
-par(mfrow=c(4,2))
-aldex.glm.plot(glm.test, eff=glm.eff, contrast="lifestyle2.Recently Settled", type="volcano", test="fdr", main = "lifestyle only comparison with Recently Settled")
-aldex.glm.plot(glm.test.sex, eff=glm.eff.sex, contrast="lifestyle2.Recently Settled", type="volcano", test="fdr", title = "sex covariate comparison with Recently Settled")
-aldex.glm.plot(glm.test, eff=glm.eff, contrast="lifestyle3.Agriculturalists", type="volcano", test="fdr", main = "lifestyle only comparison with Agriculturalists")
-aldex.glm.plot(glm.test.sex, eff=glm.eff.sex, contrast="lifestyle3.Agriculturalists", type="volcano", test="fdr", title = "sex covariate comparison with Agriculturalists")
-aldex.glm.plot(glm.test, eff=glm.eff, contrast="lifestyle4.Expats", type="volcano", test="fdr", main = "lifestyle only comparison with expats")
-aldex.glm.plot(glm.test.sex, eff=glm.eff.sex, contrast="lifestyle4.Expats", type="volcano", test="fdr", title = "sex covariate comparison with expats")
-aldex.glm.plot(glm.test, eff=glm.eff, contrast="lifestyle5.American Industrialist", type="volcano", test="fdr", main = "lifestyle only comparison with americans")
-aldex.glm.plot(glm.test.sex, eff=glm.eff.sex, contrast="lifestyle5.American Industrialist", type="volcano", test="fdr", title = "sex covariate comparison with americans")
+glm.test.all.BH <- subset(glm.test.all, select = c("lifestyle_noam2.Recently Settled:pval", "lifestyle_noam3.Agriculturalists:pval", "lifestyle_noam4.Expats:pval", "lifestyle_noam2.Recently Settled:pval.BH", "lifestyle_noam3.Agriculturalists:pval.BH", "lifestyle_noam4.Expats:pval.BH"))
+```
 
-aldex.glm.plot(glm.test.all, eff=glm.eff.all, contrast="sex_noamM", type="volcano", test="fdr", main = "all comparison across sex")
-
-par(mfrow=c(3,2))
-aldex.glm.plot(glm.test.noam, eff=glm.eff.noam, contrast="lifestyle_noam2.Recently Settled", type="volcano", test="fdr", main = "lifestyle only comparison with Recently Settled")
-aldex.glm.plot(glm.test.all, eff=glm.eff.all, contrast="lifestyle_noam2.Recently Settled", type="volcano", test="fdr", title = "all covariate comparison with Recently Settled")
-aldex.glm.plot(glm.test.noam, eff=glm.eff.noam, contrast="lifestyle_noam3.Agriculturalists", type="volcano", test="fdr", main = "lifestyle only comparison with Agriculturalists")
-aldex.glm.plot(glm.test.all, eff=glm.eff.all, contrast="lifestyle_noam3.Agriculturalists", type="volcano", test="fdr", title = "all covariate comparison with Agriculturalists")
-aldex.glm.plot(glm.test.noam, eff=glm.eff.noam, contrast="lifestyle_noam4.Expats", type="volcano", test="fdr", main = "lifestyle only comparison with expats")
-aldex.glm.plot(glm.test.all, eff=glm.eff.all, contrast="lifestyle_noam4.Expats", type="volcano", test="fdr", title = "all covariate comparison with expats")
+## save ALDEx2 covariate comparison
+```{r}
+write.csv(glm.test.BH, file = "output/glm.test.BH.csv")
+write.csv(glm.test.sex.BH, file = "output/glm.test.sex.BH.csv")
+write.csv(glm.test.noam.BH, file = "output/glm.test.noam.BH.csv")
+write.csv(glm.test.all.BH, file = "output/glm.test.all.BH.csv")
 ```
